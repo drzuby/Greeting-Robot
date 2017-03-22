@@ -40,6 +40,8 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
+        Window window = new Window(WIDTH, HEIGHT);
+
         long t_start, t_read, t_conv, t_haar, t_end;
         while (true) {
             t_start = System.currentTimeMillis();
@@ -57,11 +59,12 @@ public class Main {
 
             t_haar = System.currentTimeMillis();
 
+            window.updateImage(colorImg);
 
             Rect best = null;
             double bestScore = 0;
             for (Rect r : faces.toArray()) {
-                Imgproc.rectangle(colorImg, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
+                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
                 double score = getScore(r);
                 if (score > bestScore) {
                     best = r;
@@ -70,7 +73,7 @@ public class Main {
             }
 
             if (best != null) {
-                Imgproc.rectangle(colorImg, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
+                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
                 // Add padding
                 int width = best.width;
@@ -81,7 +84,7 @@ public class Main {
                 best.y = Math.max(0, best.y - height/2);
                 best.height = Math.min(2*height, colorImg.height() - best.y);
 
-                Imgproc.rectangle(colorImg, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
+                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
                 // Crop, catch any out of bounds errors
                 Mat faceArea;
@@ -94,25 +97,27 @@ public class Main {
                 }
 
                 String timestamp = DATE_FORMAT.format(new Date());
-                // Save full image
-                BufferedImage colorImage = convertMatToImage(colorImg);
-                String colorPath = IMG_OUTPUT_DIR + timestamp + ".jpeg";
-                writeImage(colorImage, colorPath);
-
-                // Save cropped face
-                BufferedImage faceImage = convertMatToImage(faceArea);
-                String facePath = IMG_OUTPUT_DIR + timestamp + "-cropped.jpeg";
-                writeImage(faceImage, facePath);
+//                // Save full image
+//                BufferedImage colorImage = convertMatToImage(colorImg);
+//                String colorPath = IMG_OUTPUT_DIR + timestamp + ".jpeg";
+//                writeImage(colorImage, colorPath);
+//
+//                // Save cropped face
+//                BufferedImage faceImage = convertMatToImage(faceArea);
+//                String facePath = IMG_OUTPUT_DIR + timestamp + "-cropped.jpeg";
+//                writeImage(faceImage, facePath);
             }
 
             t_end = System.currentTimeMillis();
 
+            window.repaint();
 
             String time = (t_end - t_start) + "ms \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "conv " + (t_conv - t_read) + ", " +
                     "haar " + (t_haar - t_conv) + ", " +
                     "post " + (t_end - t_haar) + "]";
+            window.setTitle(time);
             System.out.println(time);
         }
 
