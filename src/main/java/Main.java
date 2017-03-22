@@ -10,12 +10,16 @@ import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by drzuby on 13.03.17.
  */
 public class Main {
+
+    static {
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+    }
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss,SSS");
     private static final String IMG_OUTPUT_DIR = "img/";
@@ -23,83 +27,93 @@ public class Main {
     private static final int WIDTH = 1920;
     private static final int HEIGHT = 1080;
 
-    static {
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-    }
-
     public static void main(String[] args) throws IOException {
-        CascadeClassifier cascadeClassifier = new CascadeClassifier("haarcascade_frontalface_default.xml");
         VideoCapture camera = new VideoCapture(1);
         camera.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, WIDTH);
         camera.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
-        Mat color = Mat.eye(3, 3, CvType.CV_8UC1);
-        Mat gray = Mat.eye(3, 3, CvType.CV_8UC1);
 
+        Mat colorImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
+        Mat grayImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC1);
+
+        CascadeClassifier cascadeClassifier = new CascadeClassifier("haarcascade_frontalface_default.xml");
+
+        Size minSize = new Size(100, 100);
+        Size maxSize = new Size(WIDTH, HEIGHT);
+
+        long t_start, t_read, t_conv, t_haar, t_end;
         while (true) {
-            long start = System.currentTimeMillis();
-            camera.read(color);
+            t_start = System.currentTimeMillis();
 
-            System.out.println("Read: " + (System.currentTimeMillis() - start));
-            Imgproc.cvtColor(color, gray, Imgproc.COLOR_RGB2GRAY);
+            camera.read(colorImg);
 
-            System.out.println("Cvt: " + (System.currentTimeMillis() - start));
+            t_read = System.currentTimeMillis();
+
+            Imgproc.cvtColor(colorImg, grayImg, Imgproc.COLOR_BGR2GRAY);
+
+            t_conv = System.currentTimeMillis();
 
             MatOfRect faces = new MatOfRect();
-            cascadeClassifier.detectMultiScale(gray, faces, 1.1, 3, 0, new Size(100, 100), new Size(WIDTH, HEIGHT));
+            cascadeClassifier.detectMultiScale(grayImg, faces, 1.1, 3, 0, minSize, maxSize);
 
-            System.out.println("Haar: " + (System.currentTimeMillis() - start));
+            t_haar = System.currentTimeMillis();
+
 
             Rect best = null;
             double bestScore = 0;
             for (Rect r : faces.toArray()) {
+                Imgproc.rectangle(colorImg, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
                 double score = getScore(r);
                 if (score > bestScore) {
                     best = r;
                     bestScore = score;
                 }
             }
+
             if (best != null) {
-                Imgproc.rectangle(color, best.tl(), best.br(), new Scalar(0, 255, 0), 3);
+                Imgproc.rectangle(colorImg, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
-                int padX = best.width;
-                best.x -= padX / 2;
-                if (best.x < 0) best.x = 0;
-                best.width += padX;
-                if (best.x + best.width > color.width()) {
-                    best.width = color.width() - best.x;
-                }
+                // Add padding
+                int width = best.width;
+                best.x = Math.max(0, best.x - width/2);
+                best.width = Math.min(2*width, colorImg.width() - best.x);
 
-                int padY = best.height;
-                best.y -= padY / 2;
-                if (best.y < 0) best.y = 0;
-                best.height += padY;
-                if (best.y + best.height > color.height()) {
-                    best.height = color.height() - best.y;
-                }
+                int height = best.height;
+                best.y = Math.max(0, best.y - height/2);
+                best.height = Math.min(2*height, colorImg.height() - best.y);
 
-                Imgproc.rectangle(color, best.tl(), best.br(), new Scalar(0, 0, 255), 3);
+                Imgproc.rectangle(colorImg, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
-                BufferedImage colorImage = convertMatToImage(color);
-
-                String colorPath = IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + ".jpeg";
-                writeImage(colorImage, colorPath);
-
+                // Crop, catch any out of bounds errors
                 Mat faceArea;
                 try {
-                    faceArea = color.submat(best);
+                    faceArea = colorImg.submat(best);
                 } catch (Exception e) {
                     System.err.println(best);
                     e.printStackTrace();
                     continue;
                 }
 
-                BufferedImage faceImage = convertMatToImage(faceArea);
+                String timestamp = DATE_FORMAT.format(new Date());
+                // Save full image
+                BufferedImage colorImage = convertMatToImage(colorImg);
+                String colorPath = IMG_OUTPUT_DIR + timestamp + ".jpeg";
+                writeImage(colorImage, colorPath);
 
-                String facePath = IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + "-cropped.jpeg";
+                // Save cropped face
+                BufferedImage faceImage = convertMatToImage(faceArea);
+                String facePath = IMG_OUTPUT_DIR + timestamp + "-cropped.jpeg";
                 writeImage(faceImage, facePath);
-                System.out.println("Saving: " + (System.currentTimeMillis() - start));
             }
-            System.out.println("----------");
+
+            t_end = System.currentTimeMillis();
+
+
+            String time = (t_end - t_start) + "ms \t[" +
+                    "read " + (t_read - t_start) + ", " +
+                    "conv " + (t_conv - t_read) + ", " +
+                    "haar " + (t_haar - t_conv) + ", " +
+                    "post " + (t_end - t_haar) + "]";
+            System.out.println(time);
         }
 
     }
@@ -125,4 +139,5 @@ public class Main {
 
         return r.area() / Math.sqrt(d_hor * d_hor + d_ver * d_ver);
     }
+
 }
