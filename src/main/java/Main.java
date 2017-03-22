@@ -35,7 +35,12 @@ public class Main {
         Mat colorImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
         Mat grayImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC1);
 
-        CascadeClassifier cascadeClassifier = new CascadeClassifier("haarcascade_frontalface_default.xml");
+        String cascadeFile = "cascades/lbpcascade_frontalface.xml";
+        CascadeClassifier cascadeClassifier = new CascadeClassifier(cascadeFile);
+        if (cascadeClassifier.empty()) {
+            System.err.println("failed to load cascadeClassifier: "+cascadeFile);
+            System.exit(1);
+        }
 
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
@@ -115,7 +120,7 @@ public class Main {
             String time = (t_end - t_start) + "ms \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "conv " + (t_conv - t_read) + ", " +
-                    "haar " + (t_haar - t_conv) + ", " +
+                    "ccls " + (t_haar - t_conv) + ", " +
                     "post " + (t_end - t_haar) + "]";
             window.setTitle(time);
             System.out.println(time);
