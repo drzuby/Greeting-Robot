@@ -24,43 +24,55 @@ public class Main {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException {
         CascadeClassifier cascadeClassifier = new CascadeClassifier("haarcascade_frontalface_default.xml");
-        VideoCapture camera = new VideoCapture(0);
+        VideoCapture camera = new VideoCapture(1);
         camera.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, 1920);
         camera.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, 1080);
         Mat color = Mat.eye(3, 3, CvType.CV_8UC1);
         Mat gray = Mat.eye(3, 3, CvType.CV_8UC1);
 
-        long start = System.currentTimeMillis();
-        camera.read(color);
+        while (true) {
+            long start = System.currentTimeMillis();
+            camera.read(color);
 
-        System.out.println("Read: " + (System.currentTimeMillis() - start));
-        Imgproc.cvtColor(color, gray, Imgproc.COLOR_RGB2GRAY);
+            System.out.println("Read: " + (System.currentTimeMillis() - start));
+            Imgproc.cvtColor(color, gray, Imgproc.COLOR_RGB2GRAY);
 
-        System.out.println("Cvt: " + (System.currentTimeMillis() - start));
+            System.out.println("Cvt: " + (System.currentTimeMillis() - start));
 
-        MatOfRect faces = new MatOfRect();
-        cascadeClassifier.detectMultiScale(gray, faces);
+            MatOfRect faces = new MatOfRect();
+            cascadeClassifier.detectMultiScale(gray, faces);
 
-        System.out.println("Haar: " + (System.currentTimeMillis() - start));
+            System.out.println("Haar: " + (System.currentTimeMillis() - start));
 
-        for (Rect r : faces.toArray()) {
-            Imgproc.rectangle(color, r.tl(), r.br(), new Scalar(0, 255, 0), 3);
+            for (Rect r : faces.toArray()) {
+                Imgproc.rectangle(color, r.tl(), r.br(), new Scalar(0, 255, 0), 3);
+            }
+
+            BufferedImage colorImage = convertMatToImage(color);
+            BufferedImage grayImage = convertMatToImage(gray);
+            String colorPath = IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + ".jpeg";
+            String grayPath = IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + "-gray.jpeg";
+            writeImage(colorImage, colorPath);
+            writeImage(grayImage, grayPath);
+
+            System.out.println("Saving: " + (System.currentTimeMillis() - start));
+
+            System.out.println("----------");
         }
-
-        writeImage(color, IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + ".jpeg");
-        writeImage(gray, IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + "-gray.jpeg");
-
-        System.out.println("Total: " + (System.currentTimeMillis() - start));
 
     }
 
-    private static void writeImage(Mat mat, String pathname) throws IOException {
+    private static void writeImage(BufferedImage image, String path) throws IOException {
+        ImageIO.write(image, "jpeg", new File(path));
+    }
+
+    private static BufferedImage convertMatToImage(Mat mat) {
         int type = mat.channels() == 3 ? BufferedImage.TYPE_3BYTE_BGR : BufferedImage.TYPE_BYTE_GRAY;
         BufferedImage image = new BufferedImage(mat.width(), mat.height(), type);
         byte[] data = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
         mat.get(0, 0, data);
-        ImageIO.write(image, "jpeg", new File(pathname));
+        return image;
     }
 }
