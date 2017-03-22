@@ -33,7 +33,6 @@ public class Main {
         camera.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 
         Mat colorImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
-        Mat grayImg = new Mat(HEIGHT, WIDTH, CvType.CV_8UC1);
 
         String cascadeFile = "cascades/lbpcascade_frontalface.xml";
         CascadeClassifier cascadeClassifier = new CascadeClassifier(cascadeFile);
@@ -47,7 +46,7 @@ public class Main {
 
         Window window = new Window(WIDTH, HEIGHT);
 
-        long t_start, t_read, t_conv, t_haar, t_end;
+        long t_start, t_read, t_ccls, t_end;
         while (true) {
             t_start = System.currentTimeMillis();
 
@@ -55,14 +54,10 @@ public class Main {
 
             t_read = System.currentTimeMillis();
 
-            Imgproc.cvtColor(colorImg, grayImg, Imgproc.COLOR_BGR2GRAY);
-
-            t_conv = System.currentTimeMillis();
-
             MatOfRect faces = new MatOfRect();
-            cascadeClassifier.detectMultiScale(grayImg, faces, 1.1, 3, 0, minSize, maxSize);
+            cascadeClassifier.detectMultiScale(colorImg, faces, 1.1, 3, 0, minSize, maxSize);
 
-            t_haar = System.currentTimeMillis();
+            t_ccls = System.currentTimeMillis();
 
             window.updateImage(colorImg);
 
@@ -117,11 +112,10 @@ public class Main {
 
             window.repaint();
 
-            String time = (t_end - t_start) + "ms \t[" +
+            String time = 1000 / (t_end - t_start) +" fps \t[" +
                     "read " + (t_read - t_start) + ", " +
-                    "conv " + (t_conv - t_read) + ", " +
-                    "ccls " + (t_haar - t_conv) + ", " +
-                    "post " + (t_end - t_haar) + "]";
+                    "ccls " + (t_ccls - t_read) + ", " +
+                    "post " + (t_end - t_ccls) + "]";
             window.setTitle(time);
             System.out.println(time);
         }
