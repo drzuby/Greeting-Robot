@@ -17,21 +17,18 @@ import java.util.Calendar;
  */
 public class Main {
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss,SSS");
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss,SSS");
+    private static final String IMG_OUTPUT_DIR = "img/";
 
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-
         CascadeClassifier cascadeClassifier = new CascadeClassifier("haarcascade_frontalface_default.xml");
         VideoCapture camera = new VideoCapture(0);
         camera.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, 1920);
         camera.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, 1080);
-        System.out.println(camera.get(Videoio.CAP_PROP_ZOOM));
-        camera.set(Videoio.CAP_PROP_ZOOM, 2);
-        System.out.println(camera.get(Videoio.CAP_PROP_ZOOM));
         Mat color = Mat.eye(3, 3, CvType.CV_8UC1);
         Mat gray = Mat.eye(3, 3, CvType.CV_8UC1);
 
@@ -41,21 +38,21 @@ public class Main {
         System.out.println("Read: " + (System.currentTimeMillis() - start));
         Imgproc.cvtColor(color, gray, Imgproc.COLOR_RGB2GRAY);
 
-        System.out.println("Cvt: "+(System.currentTimeMillis() - start));
+        System.out.println("Cvt: " + (System.currentTimeMillis() - start));
 
         MatOfRect faces = new MatOfRect();
         cascadeClassifier.detectMultiScale(gray, faces);
 
-        System.out.println("Haar: "+(System.currentTimeMillis() - start));
+        System.out.println("Haar: " + (System.currentTimeMillis() - start));
 
         for (Rect r : faces.toArray()) {
-            Imgproc.rectangle(color, r.tl(), r.br(), new Scalar(0,255,0),3);
+            Imgproc.rectangle(color, r.tl(), r.br(), new Scalar(0, 255, 0), 3);
         }
 
-        writeImage(color, DATE_FORMAT.format(Calendar.getInstance().getTime()) + ".jpeg");
-        writeImage(gray, DATE_FORMAT.format(Calendar.getInstance().getTime()) + "-gray.jpeg");
+        writeImage(color, IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + ".jpeg");
+        writeImage(gray, IMG_OUTPUT_DIR + DATE_FORMAT.format(Calendar.getInstance().getTime()) + "-gray.jpeg");
 
-        System.out.println("Total: "+(System.currentTimeMillis() - start));
+        System.out.println("Total: " + (System.currentTimeMillis() - start));
 
     }
 
