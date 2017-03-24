@@ -28,7 +28,7 @@ public class Main {
     private static final int HEIGHT = 1080;
 
     public static void main(String[] args) throws IOException {
-        VideoCapture camera = new VideoCapture(1);
+        VideoCapture camera = new VideoCapture(0);
         camera.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, WIDTH);
         camera.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 
@@ -44,7 +44,11 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
+        Window face_window = new Window(WIDTH, HEIGHT);
+        face_window.setTitle("face");
+
         Window window = new Window(WIDTH, HEIGHT);
+        window.exitOnClose();
 
         long t_start, t_read, t_ccls, t_end;
         while (true) {
@@ -96,6 +100,8 @@ public class Main {
                     continue;
                 }
 
+                face_window.updateImage(faceArea);
+
                 String timestamp = DATE_FORMAT.format(new Date());
 //                // Save full image
 //                BufferedImage colorImage = convertMatToImage(colorImg);
@@ -111,6 +117,7 @@ public class Main {
             t_end = System.currentTimeMillis();
 
             window.repaint();
+            face_window.repaint();
 
             String time = 1000 / (t_end - t_start) +" fps \t[" +
                     "read " + (t_read - t_start) + ", " +

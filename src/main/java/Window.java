@@ -26,6 +26,9 @@ public class Window extends JFrame {
 
         pack();
         setVisible(true);
+    }
+
+    public void exitOnClose() {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     }
 
