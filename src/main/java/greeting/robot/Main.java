@@ -1,3 +1,5 @@
+package greeting.robot;
+
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
@@ -44,13 +46,14 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
-        Window face_window = new Window(WIDTH, HEIGHT);
-        face_window.setTitle("face");
-
-        Window window = new Window(WIDTH, HEIGHT);
-        window.exitOnClose();
+//        greeting.robot.Window face_window = new greeting.robot.Window(WIDTH, HEIGHT);
+//        face_window.setTitle("face");
+//
+//        greeting.robot.Window window = new greeting.robot.Window(WIDTH, HEIGHT);
+//        window.exitOnClose();
 
         long t_start, t_read, t_ccls, t_end;
+        //noinspection InfiniteLoopStatement
         while (true) {
             t_start = System.currentTimeMillis();
 
@@ -63,12 +66,12 @@ public class Main {
 
             t_ccls = System.currentTimeMillis();
 
-            window.updateImage(colorImg);
+//            window.updateImage(colorImg);
 
             Rect best = null;
             double bestScore = 0;
             for (Rect r : faces.toArray()) {
-                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
+//                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
                 double score = getScore(r);
                 if (score > bestScore) {
                     best = r;
@@ -77,7 +80,7 @@ public class Main {
             }
 
             if (best != null) {
-                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
+//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
                 // Add padding
                 int width = best.width;
@@ -88,7 +91,7 @@ public class Main {
                 best.y = Math.max(0, best.y - height/2);
                 best.height = Math.min(2*height, colorImg.height() - best.y);
 
-                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
+//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
                 // Crop, catch any out of bounds errors
                 Mat faceArea;
@@ -100,7 +103,9 @@ public class Main {
                     continue;
                 }
 
-                face_window.updateImage(faceArea);
+                System.out.println(best);
+
+//                face_window.updateImage(faceArea);
 
                 String timestamp = DATE_FORMAT.format(new Date());
 //                // Save full image
@@ -116,14 +121,14 @@ public class Main {
 
             t_end = System.currentTimeMillis();
 
-            window.repaint();
-            face_window.repaint();
+//            window.repaint();
+//            face_window.repaint();
 
             String time = 1000 / (t_end - t_start) +" fps \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "ccls " + (t_ccls - t_read) + ", " +
                     "post " + (t_end - t_ccls) + "]";
-            window.setTitle(time);
+//            window.setTitle(time);
             System.out.println(time);
         }
 

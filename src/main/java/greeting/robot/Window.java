@@ -1,3 +1,5 @@
+package greeting.robot;
+
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
