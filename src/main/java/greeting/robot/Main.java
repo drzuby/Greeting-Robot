@@ -5,6 +5,10 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
+import pl.edu.agh.biowiz.face.lib.BitmapImage;
+import pl.edu.agh.biowiz.face.lib.pw.PwFaceAnalysisLib;
+import pl.edu.agh.biowiz.model.detected.ImageRectangle;
+import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -13,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Optional;
 
 /**
  * Created by drzuby on 13.03.17.
@@ -46,13 +51,17 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
-//        greeting.robot.Window face_window = new greeting.robot.Window(WIDTH, HEIGHT);
-//        face_window.setTitle("face");
+        greeting.robot.Window face_window = new greeting.robot.Window(WIDTH, HEIGHT);
+        face_window.setTitle("face");
 //
-//        greeting.robot.Window window = new greeting.robot.Window(WIDTH, HEIGHT);
-//        window.exitOnClose();
+        greeting.robot.Window window = new greeting.robot.Window(WIDTH, HEIGHT);
+        window.exitOnClose();
 
-        long t_start, t_read, t_ccls, t_end;
+        // Face lib
+        PwFaceAnalysisLib analyser = new PwFaceAnalysisLib();
+        analyser.initialize();
+
+        long t_start, t_read, t_ccls, t_detect, t_desc, t_end;
         //noinspection InfiniteLoopStatement
         while (true) {
             t_start = System.currentTimeMillis();
@@ -66,7 +75,7 @@ public class Main {
 
             t_ccls = System.currentTimeMillis();
 
-//            window.updateImage(colorImg);
+            window.updateImage(colorImg);
 
             Rect best = null;
             double bestScore = 0;
@@ -80,7 +89,7 @@ public class Main {
             }
 
             if (best != null) {
-//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
+                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
                 // Add padding
                 int width = best.width;
@@ -91,12 +100,12 @@ public class Main {
                 best.y = Math.max(0, best.y - height/2);
                 best.height = Math.min(2*height, colorImg.height() - best.y);
 
-//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
+                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
                 // Crop, catch any out of bounds errors
                 Mat faceArea;
                 try {
-                    faceArea = colorImg.submat(best);
+                    faceArea =  colorImg.submat(best);
                 } catch (Exception e) {
                     System.err.println(best);
                     e.printStackTrace();
@@ -105,8 +114,24 @@ public class Main {
 
                 System.out.println(best);
 
-//                face_window.updateImage(faceArea);
+                face_window.updateImage(faceArea);
 
+                BufferedImage bufferedImage = convertMatToImage(faceArea);
+
+                Optional<PwDetectedFace> pwDetectedFace = analyser.detectFaceInRectangle(bufferedImage,
+                        new ImageRectangle(0, 0, bufferedImage.getWidth(), bufferedImage.getHeight()));
+
+                t_detect = System.currentTimeMillis();
+
+                pwDetectedFace.flatMap(face -> {
+                    System.out.println(face.toString());
+                    return analyser.createDescriptor(face, bufferedImage).getDescriptor();
+                })
+                        .ifPresent(pwFaceDescriptor -> {
+                            System.out.println("quality: "+pwFaceDescriptor.getQuality()+" "+pwFaceDescriptor.getDescriptor());
+                        });
+
+                t_desc = System.currentTimeMillis();
                 String timestamp = DATE_FORMAT.format(new Date());
 //                // Save full image
 //                BufferedImage colorImage = convertMatToImage(colorImg);
@@ -117,18 +142,22 @@ public class Main {
 //                BufferedImage faceImage = convertMatToImage(faceArea);
 //                String facePath = IMG_OUTPUT_DIR + timestamp + "-cropped.jpeg";
 //                writeImage(faceImage, facePath);
+            } else {
+                t_desc=t_detect=System.currentTimeMillis();
             }
 
             t_end = System.currentTimeMillis();
 
-//            window.repaint();
-//            face_window.repaint();
+            window.repaint();
+            face_window.repaint();
 
             String time = 1000 / (t_end - t_start) +" fps \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "ccls " + (t_ccls - t_read) + ", " +
+                    "detect" + (t_ccls - t_detect)+ "," +
+                    "desc" + (t_detect - t_desc)+ "," +
                     "post " + (t_end - t_ccls) + "]";
-//            window.setTitle(time);
+            window.setTitle(time);
             System.out.println(time);
         }
 

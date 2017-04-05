@@ -1,0 +1,30 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group = 'pl.edu.agh.ki'
+version = '1.0-SNAPSHOT'
+
+description = """minimal-pom"""
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+}
+
+repositories {
+     maven { url "http://repo.maven.apache.org/maven2" }
+     flatDir { dirs "lib" }
+}
+dependencies {
+    compile project(':face-lib')
+    compile files('../lib/opencv-320.jar')
+}
