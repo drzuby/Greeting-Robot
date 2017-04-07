@@ -3,7 +3,10 @@
 out/*
 img/*
 target/*
+
+.biowiz-data
 face-lib/*
+
 .gradle
 /build/
 

@@ -1,3 +1,0 @@
-Manifest-Version: 1.0
-Main-Class: greeting.robot.Main
-Class-Path: opencv-320.jar
