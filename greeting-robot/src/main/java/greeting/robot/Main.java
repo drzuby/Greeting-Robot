@@ -5,10 +5,10 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
-import pl.edu.agh.biowiz.face.lib.BitmapImage;
 import pl.edu.agh.biowiz.face.lib.pw.PwFaceAnalysisLib;
 import pl.edu.agh.biowiz.model.detected.ImageRectangle;
 import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
+import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -29,10 +29,22 @@ public class Main {
     }
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss,SSS");
-    private static final String IMG_OUTPUT_DIR = "img/";
 
+    private static final String IMG_OUTPUT_DIR = "img/";
     private static final int WIDTH = 1920;
+
     private static final int HEIGHT = 1080;
+    private static final Object LOCK = new Object();
+
+    private static final Object LOCK2 = new Object();
+
+    private static BufferedImage bufferedImage;
+    private static Point topLeftIn;
+    private static Window window = new Window(WIDTH, HEIGHT);
+
+    private static Optional<PwDetectedFace> detectedFace = Optional.empty();
+    private static Optional<PwFaceDescriptor> descriptor = Optional.empty();
+    private static Optional<Point> topLeftOut = Optional.empty();
 
     public static void main(String[] args) throws IOException {
         VideoCapture camera = new VideoCapture(0);
@@ -53,13 +65,10 @@ public class Main {
 
         greeting.robot.Window face_window = new greeting.robot.Window(WIDTH, HEIGHT);
         face_window.setTitle("face");
-//
-        greeting.robot.Window window = new greeting.robot.Window(WIDTH, HEIGHT);
+
         window.exitOnClose();
 
-        // Face lib
-        PwFaceAnalysisLib analyser = new PwFaceAnalysisLib();
-        analyser.initialize();
+        new Thread(Main::runAnalyser).start();
 
         long t_start, t_read, t_ccls, t_detect, t_desc, t_end;
         //noinspection InfiniteLoopStatement
@@ -80,7 +89,7 @@ public class Main {
             Rect best = null;
             double bestScore = 0;
             for (Rect r : faces.toArray()) {
-//                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
+                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
                 double score = getScore(r);
                 if (score > bestScore) {
                     best = r;
@@ -92,13 +101,20 @@ public class Main {
                 Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
                 // Add padding
+                final double pad = 0.2;
                 int width = best.width;
-                best.x = Math.max(0, best.x - width/2);
-                best.width = Math.min(2*width, colorImg.width() - best.x);
-
                 int height = best.height;
-                best.y = Math.max(0, best.y - height/2);
-                best.height = Math.min(2*height, colorImg.height() - best.y);
+
+                double padX = width * pad;
+                double padY = height * pad;
+
+                Point tl = best.tl();
+                Point br = best.br();
+                tl.x = Math.max(0, tl.x - padX);
+                tl.y = Math.max(0, tl.y - padY);
+                br.x = Math.min(colorImg.width(), br.x + padX);
+                br.y = Math.min(colorImg.height(), br.y + padY);
+                best = new Rect(tl, br);
 
                 Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
@@ -116,22 +132,41 @@ public class Main {
 
                 face_window.updateImage(faceArea);
 
-                BufferedImage bufferedImage = convertMatToImage(faceArea);
 
-                Optional<PwDetectedFace> pwDetectedFace = analyser.detectFaceInRectangle(bufferedImage,
-                        new ImageRectangle(0, 0, bufferedImage.getWidth(), bufferedImage.getHeight()));
+                synchronized (LOCK) {
+                    topLeftIn = best.tl();
+                    bufferedImage = convertMatToImage(faceArea);
+                }
 
                 t_detect = System.currentTimeMillis();
-
-                pwDetectedFace.flatMap(face -> {
-                    System.out.println(face.toString());
-                    return analyser.createDescriptor(face, bufferedImage).getDescriptor();
-                })
-                        .ifPresent(pwFaceDescriptor -> {
-                            System.out.println("quality: "+pwFaceDescriptor.getQuality()+" "+pwFaceDescriptor.getDescriptor());
-                        });
-
                 t_desc = System.currentTimeMillis();
+
+                Optional<PwDetectedFace> pwDetectedFace;
+                Optional<PwFaceDescriptor> pwFaceDescriptor;
+                Optional<Point> topLeft;
+                synchronized (LOCK2) {
+                    pwDetectedFace = detectedFace;
+                    pwFaceDescriptor = descriptor;
+                    topLeft = topLeftOut;
+                }
+
+                if (pwDetectedFace.isPresent() && topLeft.isPresent()) {
+                    PwDetectedFace face = pwDetectedFace.get();
+                    tl = topLeft.get().clone();
+                    tl.x += face.getX();
+                    tl.y += face.getY();
+
+                    br = tl.clone();
+                    br.x += face.getWidth();
+                    br.y += face.getHeight();
+
+                    Imgproc.rectangle(window.image, tl, br, new Scalar(255, 0, 0));
+                }
+
+                pwFaceDescriptor.ifPresent(descriptor -> {
+                    System.out.println("quality: " + descriptor.getQuality() + " " + descriptor.getDescriptor());
+                });
+
                 String timestamp = DATE_FORMAT.format(new Date());
 //                // Save full image
 //                BufferedImage colorImage = convertMatToImage(colorImg);
@@ -183,6 +218,36 @@ public class Main {
         int d_ver = HEIGHT / 2 - cy;
 
         return r.area() / Math.sqrt(d_hor * d_hor + d_ver * d_ver);
+    }
+
+    private static void runAnalyser() {
+        // Face lib
+        PwFaceAnalysisLib analyser = new PwFaceAnalysisLib();
+        analyser.initialize();
+
+        while (true) {
+
+            BufferedImage image;
+            Point topLeft;
+            synchronized (LOCK) {
+                image = bufferedImage;
+                topLeft = topLeftIn;
+            }
+
+            Optional<PwDetectedFace> pwDetectedFace = analyser.detectFaceInRectangle(image,
+                    new ImageRectangle(0, 0, image.getWidth(), image.getHeight()));
+
+            Optional<PwFaceDescriptor> pwFaceDescriptor = pwDetectedFace.flatMap(face -> {
+                System.out.println(face.toString());
+                return analyser.createDescriptor(face, bufferedImage).getDescriptor();
+            });
+
+            synchronized (LOCK2) {
+                detectedFace = pwDetectedFace;
+                descriptor = pwFaceDescriptor;
+                topLeftOut = Optional.of(topLeft);
+            }
+        }
     }
 
 }
