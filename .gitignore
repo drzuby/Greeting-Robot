@@ -4,9 +4,7 @@ out/*
 img/*
 target/*
 
-.biowiz-data
-face-lib/*
-
+**/.biowiz-data
 **/.gradle
 **/build/
 
