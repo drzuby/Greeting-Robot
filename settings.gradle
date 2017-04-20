@@ -15,5 +15,5 @@ include 'api'
 include 'services:webservice'
 */
 
-rootProject.name = 'greeting-root'
-include 'face-lib', 'greeting-robot'
+rootProject.name = 'Greeting-Robot'
+include 'face-lib', 'greeting-robot', 'spring_boot'
