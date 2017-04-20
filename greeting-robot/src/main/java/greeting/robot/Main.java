@@ -158,7 +158,7 @@ public class Main {
 
         int counter = 0;
 
-        long t_start, t_end;
+        long t_start, t_end, t_conv;
 
         while (true) {
             t_start = System.currentTimeMillis();
@@ -167,18 +167,12 @@ public class Main {
             if (face == null) {
                 try {
                     Thread.sleep(100);
+                    continue;
                 } catch (InterruptedException e) {
                     break;
                 }
-                continue;
             }
             BufferedImage image = convertToBufferedImage(face);
-
-            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-
-            final String filename = counter + ".jpeg";
-            builder.addTextBody("name", filename, ContentType.TEXT_PLAIN);
 
             byte[] imageBytes;
             try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -190,10 +184,17 @@ public class Main {
                 continue;
             }
 
-            builder.addBinaryBody("file", imageBytes,
-                    ContentType.APPLICATION_OCTET_STREAM, filename);
+            t_conv = System.currentTimeMillis();
 
-            HttpEntity multipart = builder.build();
+            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
+
+            final String filename = counter++ + ".jpeg";
+
+            HttpEntity multipart = MultipartEntityBuilder.create()
+                    .addTextBody("name", filename, ContentType.TEXT_PLAIN)
+                    .addBinaryBody("file", imageBytes, ContentType.APPLICATION_OCTET_STREAM, filename)
+                    .build();
+
             uploadFile.setEntity(multipart);
             String responseText = "";
             try {
@@ -207,8 +208,8 @@ public class Main {
 
             t_end = System.currentTimeMillis();
 
-            String time = (t_end - t_start) +" ms";
-            face_window.setTitle(time + responseText);
+            String time = "["+(t_end - t_start) +" ms: conv "+(t_conv-t_start)+"]";
+            face_window.setTitle(responseText+time);
             face_window.setImage(image);
             face_window.repaint();
         }

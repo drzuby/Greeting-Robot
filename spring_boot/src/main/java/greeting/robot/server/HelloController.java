@@ -2,11 +2,13 @@ package greeting.robot.server;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pl.edu.agh.biowiz.face.lib.pw.PwFaceAnalysisLib;
 import pl.edu.agh.biowiz.model.detected.ImageRectangle;
 import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
+import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
 import javax.annotation.PostConstruct;
 import javax.imageio.ImageIO;
@@ -19,12 +21,12 @@ import java.util.Optional;
 public class HelloController {
 
     private final Logger logger = LoggerFactory.getLogger(HelloController.class);
-    private final PwFaceAnalysisLib analyser = new PwFaceAnalysisLib();
 
-    @PostConstruct
-    public void postConstruct() {
-        analyser.initialize();
-    }
+    @Autowired
+    private AnalyserService analyserService;
+
+    @Autowired
+    private DescriptorService descriptorService;
 
     @RequestMapping("/")
     public String index() {
@@ -35,39 +37,45 @@ public class HelloController {
     @ResponseBody
     public String uploadFileHandler(@RequestParam("name") String name,
                                     @RequestParam("file") MultipartFile file) {
-        if (!file.isEmpty()) {
-            try {
-                double startTime, detectTime, descTime;
-                byte[] bytes = file.getBytes();
+        if (file.isEmpty()) {
+            return "You failed to upload " + name + " because the file was empty.";
+        }
+        try {
+            double startTime, detectTime, descTime;
+            byte[] bytes = file.getBytes();
 
-                ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-                BufferedImage bufferedImage = ImageIO.read(bais);
+            ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+            BufferedImage bufferedImage = ImageIO.read(bais);
 
-                logger.debug("File <{}> has been successfully uploaded", name);
+            logger.debug("File <{}> has been successfully uploaded", name);
 
-                startTime = System.currentTimeMillis();
+            startTime = System.currentTimeMillis();
 
-                Optional<PwDetectedFace> pwDetectedFace = analyser.detectFaceInRectangle(bufferedImage, new ImageRectangle(0, 0, bufferedImage.getWidth(), bufferedImage.getHeight()));
+            Optional<PwDetectedFace> pwDetectedFace = analyserService.detect(bufferedImage);
 
-                detectTime = System.currentTimeMillis();
+            detectTime = System.currentTimeMillis();
 
-                pwDetectedFace.flatMap(face -> {
-                    logger.debug("Found following face on image <{}>: {}", name, face);
-                    return analyser.createDescriptor(face, bufferedImage).getDescriptor();
-                }).ifPresent(pwFaceDescriptor ->
-                        logger.debug("quality: {} {}", pwFaceDescriptor.getQuality(), Arrays.toString(pwFaceDescriptor.getDescriptor())));
+            Optional<PwFaceDescriptor> descriptor = pwDetectedFace.flatMap(face -> {
+                logger.debug("Found following face on image <{}>: {}", name, face);
+                return analyserService.describe(face, bufferedImage).getDescriptor();
+            });
 
-                descTime = System.currentTimeMillis();
+            descTime = System.currentTimeMillis();
 
-                logger.debug("Detect: {}; Descriptor: {}; Total: {}", (detectTime - startTime) / 1000, (descTime - startTime) / 1000, (detectTime + descTime - 2 * startTime) / 1000);
+            logger.debug("Detect: {}; Descriptor: {}; Total: {}",
+                    (detectTime - startTime) / 1000,
+                    (descTime - descTime) / 1000,
+                    (detectTime - startTime) / 1000);
 
-                return "Upload and analysis successful";
-            } catch (Exception e) {
-                return "You failed to upload " + name + " => " + e.getMessage();
+            if (descriptor.isPresent()) {
+                PwFaceDescriptor pwFaceDescriptor = descriptor.get();
+                logger.debug("quality: {}", pwFaceDescriptor.getQuality());
+                return String.join("\n", descriptorService.identify(pwFaceDescriptor));
+            } else {
+                return "No faces found";
             }
-        } else {
-            return "You failed to upload " + name
-                    + " because the file was empty.";
+        } catch (Exception e) {
+            return "You failed to upload " + name + " => " + e.getMessage();
         }
     }
 }
