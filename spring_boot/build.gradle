@@ -18,11 +18,12 @@ repositories {
 
 dependencies {
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.2.RELEASE'
-    compile(group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2') {
+
+    testCompile group: 'commons-io', name: 'commons-io', version: '2.4'
+    testCompile group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
+    testCompile(group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2') {
         exclude(module: 'commons-logging')
     }
-    compile group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
-    compile group: 'commons-io', name: 'commons-io', version: '2.4'
 
     if (os.contains('windows')) {
         compile fileTree(dir: 'lib/win', include: '*.jar')

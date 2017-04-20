@@ -54,7 +54,8 @@ public class HelloController {
                 pwDetectedFace.flatMap(face -> {
                     logger.debug("Found following face on image <{}>: {}", name, face);
                     return analyser.createDescriptor(face, bufferedImage).getDescriptor();
-                }).ifPresent(pwFaceDescriptor -> logger.debug("quality: {} {}", pwFaceDescriptor.getQuality(), Arrays.toString(pwFaceDescriptor.getDescriptor())));
+                }).ifPresent(pwFaceDescriptor ->
+                        logger.debug("quality: {} {}", pwFaceDescriptor.getQuality(), Arrays.toString(pwFaceDescriptor.getDescriptor())));
 
                 descTime = System.currentTimeMillis();
 

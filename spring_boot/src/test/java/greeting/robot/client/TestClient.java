@@ -1,3 +1,5 @@
+package greeting.robot.client;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -13,11 +15,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 
-public class Main {
+public class TestClient {
     private static String FILENAME = "exampleFile.jpeg";
 
     public static void main(String[] args) throws IOException {
         CloseableHttpClient httpClient = HttpClients.createDefault();
+
         HttpPost uploadFile = new HttpPost("http://localhost:9999/uploadFile");
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addTextBody("name", "someFile.jpeg", ContentType.TEXT_PLAIN);

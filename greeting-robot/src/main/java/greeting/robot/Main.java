@@ -1,50 +1,37 @@
 package greeting.robot;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
-import pl.edu.agh.biowiz.face.lib.pw.PwFaceAnalysisLib;
-import pl.edu.agh.biowiz.model.detected.ImageRectangle;
-import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
-import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Optional;
 
-/**
- * Created by drzuby on 13.03.17.
- */
 public class Main {
+
+    private static final String ENDPOINT_URL = "http://localhost:9999/uploadFile";
 
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss,SSS");
-
-    private static final String IMG_OUTPUT_DIR = "img/";
     private static final int WIDTH = 1920;
-
     private static final int HEIGHT = 1080;
-    private static final Object LOCK = new Object();
 
-    private static final Object LOCK2 = new Object();
-
-    private static BufferedImage bufferedImage;
-    private static Point topLeftIn;
-    private static Window window = new Window(WIDTH, HEIGHT);
-
-    private static Optional<PwDetectedFace> detectedFace = Optional.empty();
-    private static Optional<PwFaceDescriptor> descriptor = Optional.empty();
-    private static Optional<Point> topLeftOut = Optional.empty();
+    private static volatile Mat faceArea;
 
     public static void main(String[] args) throws IOException {
         VideoCapture camera = new VideoCapture(0);
@@ -63,14 +50,13 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
-        greeting.robot.Window face_window = new greeting.robot.Window(WIDTH, HEIGHT);
-        face_window.setTitle("face");
+        Window window = new Window(WIDTH, HEIGHT);
 
         window.exitOnClose();
 
-        new Thread(Main::runAnalyser).start();
+        new Thread(Main::client).start();
 
-        long t_start, t_read, t_ccls, t_detect, t_desc, t_end;
+        long t_start, t_read, t_ccls, t_end;
         //noinspection InfiniteLoopStatement
         while (true) {
             t_start = System.currentTimeMillis();
@@ -119,7 +105,7 @@ public class Main {
                 Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
                 // Crop, catch any out of bounds errors
-                Mat faceArea;
+
                 try {
                     faceArea =  colorImg.submat(best);
                 } catch (Exception e) {
@@ -129,68 +115,15 @@ public class Main {
                 }
 
                 System.out.println(best);
-
-                face_window.updateImage(faceArea);
-
-
-                synchronized (LOCK) {
-                    topLeftIn = best.tl();
-                    bufferedImage = convertMatToImage(faceArea);
-                }
-
-                t_detect = System.currentTimeMillis();
-                t_desc = System.currentTimeMillis();
-
-                Optional<PwDetectedFace> pwDetectedFace;
-                Optional<PwFaceDescriptor> pwFaceDescriptor;
-                Optional<Point> topLeft;
-                synchronized (LOCK2) {
-                    pwDetectedFace = detectedFace;
-                    pwFaceDescriptor = descriptor;
-                    topLeft = topLeftOut;
-                }
-
-                if (pwDetectedFace.isPresent() && topLeft.isPresent()) {
-                    PwDetectedFace face = pwDetectedFace.get();
-                    tl = topLeft.get().clone();
-                    tl.x += face.getX();
-                    tl.y += face.getY();
-
-                    br = tl.clone();
-                    br.x += face.getWidth();
-                    br.y += face.getHeight();
-
-                    Imgproc.rectangle(window.image, tl, br, new Scalar(255, 0, 0));
-                }
-
-                pwFaceDescriptor.ifPresent(descriptor -> {
-                    System.out.println("quality: " + descriptor.getQuality() + " " + descriptor.getDescriptor());
-                });
-
-                String timestamp = DATE_FORMAT.format(new Date());
-//                // Save full image
-//                BufferedImage colorImage = convertMatToImage(colorImg);
-//                String colorPath = IMG_OUTPUT_DIR + timestamp + ".jpeg";
-//                writeImage(colorImage, colorPath);
-//
-//                // Save cropped face
-//                BufferedImage faceImage = convertMatToImage(faceArea);
-//                String facePath = IMG_OUTPUT_DIR + timestamp + "-cropped.jpeg";
-//                writeImage(faceImage, facePath);
-            } else {
-                t_desc=t_detect=System.currentTimeMillis();
             }
 
             t_end = System.currentTimeMillis();
 
             window.repaint();
-            face_window.repaint();
 
             String time = 1000 / (t_end - t_start) +" fps \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "ccls " + (t_ccls - t_read) + ", " +
-                    "detect" + (t_ccls - t_detect)+ "," +
-                    "desc" + (t_detect - t_desc)+ "," +
                     "post " + (t_end - t_ccls) + "]";
             window.setTitle(time);
             System.out.println(time);
@@ -198,11 +131,7 @@ public class Main {
 
     }
 
-    private static void writeImage(BufferedImage image, String path) throws IOException {
-        ImageIO.write(image, "jpeg", new File(path));
-    }
-
-    private static BufferedImage convertMatToImage(Mat mat) {
+    private static BufferedImage convertToBufferedImage(Mat mat) {
         int type = mat.channels() == 3 ? BufferedImage.TYPE_3BYTE_BGR : BufferedImage.TYPE_BYTE_GRAY;
         BufferedImage image = new BufferedImage(mat.width(), mat.height(), type);
         byte[] data = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
@@ -220,33 +149,68 @@ public class Main {
         return r.area() / Math.sqrt(d_hor * d_hor + d_ver * d_ver);
     }
 
-    private static void runAnalyser() {
-        // Face lib
-        PwFaceAnalysisLib analyser = new PwFaceAnalysisLib();
-        analyser.initialize();
+    // Http client thread, Face Window display
+    private static void client() {
+        FaceWindow face_window = new FaceWindow();
+        face_window.setTitle("face");
+
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+
+        int counter = 0;
+
+        long t_start, t_end;
 
         while (true) {
+            t_start = System.currentTimeMillis();
 
-            BufferedImage image;
-            Point topLeft;
-            synchronized (LOCK) {
-                image = bufferedImage;
-                topLeft = topLeftIn;
+            Mat face = faceArea;
+            if (face == null) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    break;
+                }
+                continue;
+            }
+            BufferedImage image = convertToBufferedImage(face);
+
+            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+
+            final String filename = counter + ".jpeg";
+            builder.addTextBody("name", filename, ContentType.TEXT_PLAIN);
+
+            byte[] imageBytes;
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                ImageIO.write(image, "jpeg", baos);
+                baos.flush();
+                imageBytes = baos.toByteArray();
+            } catch (IOException e) {
+                e.printStackTrace();
+                continue;
             }
 
-            Optional<PwDetectedFace> pwDetectedFace = analyser.detectFaceInRectangle(image,
-                    new ImageRectangle(0, 0, image.getWidth(), image.getHeight()));
+            builder.addBinaryBody("file", imageBytes,
+                    ContentType.APPLICATION_OCTET_STREAM, filename);
 
-            Optional<PwFaceDescriptor> pwFaceDescriptor = pwDetectedFace.flatMap(face -> {
-                System.out.println(face.toString());
-                return analyser.createDescriptor(face, bufferedImage).getDescriptor();
-            });
-
-            synchronized (LOCK2) {
-                detectedFace = pwDetectedFace;
-                descriptor = pwFaceDescriptor;
-                topLeftOut = Optional.of(topLeft);
+            HttpEntity multipart = builder.build();
+            uploadFile.setEntity(multipart);
+            String responseText = "";
+            try {
+                CloseableHttpResponse response = httpClient.execute(uploadFile);
+                HttpEntity responseEntity = response.getEntity();
+                responseText = IOUtils.toString(responseEntity.getContent());
+                System.out.println(responseText);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
+
+            t_end = System.currentTimeMillis();
+
+            String time = (t_end - t_start) +" ms";
+            face_window.setTitle(time + responseText);
+            face_window.setImage(image);
+            face_window.repaint();
         }
     }
 
