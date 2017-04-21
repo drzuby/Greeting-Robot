@@ -25,7 +25,6 @@ repositories {
      flatDir { dirs "lib" }
 }
 dependencies {
-//    compile project(':face-lib')
     compile files('lib/opencv-320.jar')
 
     compile group: 'commons-io', name: 'commons-io', version: '2.4'
