@@ -64,8 +64,8 @@ public class HelloController {
 
             logger.debug("Detect: {}; Descriptor: {}; Total: {}",
                     (detectTime - startTime) / 1000,
-                    (descTime - descTime) / 1000,
-                    (detectTime - startTime) / 1000);
+                    (descTime - detectTime) / 1000,
+                    (descTime - startTime) / 1000);
 
             if (descriptor.isPresent()) {
                 PwFaceDescriptor pwFaceDescriptor = descriptor.get();
