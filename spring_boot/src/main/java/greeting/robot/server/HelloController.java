@@ -1,26 +1,26 @@
 package greeting.robot.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import pl.edu.agh.biowiz.face.lib.pw.PwFaceAnalysisLib;
-import pl.edu.agh.biowiz.model.detected.ImageRectangle;
 import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
 import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
-import javax.annotation.PostConstruct;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 public class HelloController {
 
     private final Logger logger = LoggerFactory.getLogger(HelloController.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private AnalyserService analyserService;
@@ -70,7 +70,16 @@ public class HelloController {
             if (descriptor.isPresent()) {
                 PwFaceDescriptor pwFaceDescriptor = descriptor.get();
                 logger.debug("quality: {}", pwFaceDescriptor.getQuality());
-                return String.join("\n", descriptorService.identify(pwFaceDescriptor));
+                return descriptorService.identify(pwFaceDescriptor).stream()
+                        .map(r -> {
+                            try {
+                                return objectMapper.writeValueAsString(r);
+                            } catch (JsonProcessingException e) {
+                                logger.error("Error occurred while transforming result to string", e);
+                            }
+                            return null;
+                        })
+                        .collect(Collectors.joining("\n"));
             } else {
                 return "No faces found";
             }

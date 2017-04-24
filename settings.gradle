@@ -17,3 +17,5 @@ include 'services:webservice'
 
 rootProject.name = 'Greeting-Robot'
 include 'greeting-robot', 'spring_boot'
+include 'data-api'
+

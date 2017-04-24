@@ -1,5 +1,6 @@
 package greeting.robot.server;
 
+import greeting.robot.data.api.Result;
 import org.springframework.stereotype.Service;
 import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
@@ -16,7 +17,10 @@ public class DescriptorService {
 //        this.analyserService = analyserService;
 //    }
 
-    public List<String> identify(PwFaceDescriptor descriptor) {
-        return Collections.singletonList("Paweł Maniecki");
+    public List<Result> identify(PwFaceDescriptor descriptor) {
+        Result tmpResult = new Result();
+        tmpResult.setFirstName("Paweł");
+        tmpResult.setLastName("Maniecki");
+        return Collections.singletonList(tmpResult);
     }
 }

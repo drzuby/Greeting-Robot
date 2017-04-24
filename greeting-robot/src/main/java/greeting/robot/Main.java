@@ -1,5 +1,7 @@
 package greeting.robot;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import greeting.robot.data.api.Result;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -33,6 +35,8 @@ public class Main {
 
     private static volatile Mat faceArea;
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public static void main(String[] args) throws IOException {
         VideoCapture camera = new VideoCapture(0);
         camera.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, WIDTH);
@@ -43,7 +47,7 @@ public class Main {
         String cascadeFile = "cascades/lbpcascade_frontalface.xml";
         CascadeClassifier cascadeClassifier = new CascadeClassifier(cascadeFile);
         if (cascadeClassifier.empty()) {
-            System.err.println("failed to load cascadeClassifier: "+cascadeFile);
+            System.err.println("failed to load cascadeClassifier: " + cascadeFile);
             System.exit(1);
         }
 
@@ -107,7 +111,7 @@ public class Main {
                 // Crop, catch any out of bounds errors
 
                 try {
-                    faceArea =  colorImg.submat(best);
+                    faceArea = colorImg.submat(best);
                 } catch (Exception e) {
                     System.err.println(best);
                     e.printStackTrace();
@@ -121,7 +125,7 @@ public class Main {
 
             window.repaint();
 
-            String time = 1000 / (t_end - t_start) +" fps \t[" +
+            String time = 1000 / (t_end - t_start) + " fps \t[" +
                     "read " + (t_read - t_start) + ", " +
                     "ccls " + (t_ccls - t_read) + ", " +
                     "post " + (t_end - t_ccls) + "]";
@@ -201,15 +205,16 @@ public class Main {
                 CloseableHttpResponse response = httpClient.execute(uploadFile);
                 HttpEntity responseEntity = response.getEntity();
                 responseText = IOUtils.toString(responseEntity.getContent());
-                System.out.println(responseText);
+                Result result = objectMapper.readValue(responseText, Result.class);
+                System.out.println(result);
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
             t_end = System.currentTimeMillis();
 
-            String time = "["+(t_end - t_start) +" ms: conv "+(t_conv-t_start)+"]";
-            face_window.setTitle(responseText+time);
+            String time = "[" + (t_end - t_start) + " ms: conv " + (t_conv - t_start) + "]";
+            face_window.setTitle(responseText + time);
             face_window.setImage(image);
             face_window.repaint();
         }
