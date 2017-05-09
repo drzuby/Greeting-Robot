@@ -10,3 +10,7 @@ repositories {
 
 dependencies {
 }
+
+jar {
+    from configurations.compile.collect { zipTree it }
+}

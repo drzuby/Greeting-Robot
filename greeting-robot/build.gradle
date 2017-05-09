@@ -25,7 +25,7 @@ repositories {
      flatDir { dirs "lib" }
 }
 dependencies {
-    compile files('lib/opencv-320.jar')
+    compile fileTree(dir: 'lib', include: ['*.jar'])
 
     compile group: 'commons-io', name: 'commons-io', version: '2.4'
     compile group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
@@ -34,4 +34,11 @@ dependencies {
     }
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
     compile project(":data-api")
+
 }
+
+jar {
+    from configurations.compile.collect { zipTree it }
+    manifest.attributes "Main-Class": "greeting.robot.Main"
+}
+

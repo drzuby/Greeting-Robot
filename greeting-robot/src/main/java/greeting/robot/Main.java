@@ -15,6 +15,8 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
+import pl.edu.agh.capo.controller.CapoController;
+import pl.edu.agh.capo.controller.SensorLoopMonitorThread;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -54,83 +56,95 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
-        Window window = new Window(WIDTH, HEIGHT);
+//        Window window = new Window(WIDTH, HEIGHT);
+//
+//        window.exitOnClose();
 
-        window.exitOnClose();
+        CapoController capoController = new CapoController("127.0.0.1", 1.0D);
+        SensorLoopMonitorThread sensorLoopMonitorThread = new SensorLoopMonitorThread(capoController);
+        Thread monitorThread = new Thread(sensorLoopMonitorThread);
+        capoController.SetMonitoThread(monitorThread);
+        new Thread(capoController).start();
+        monitorThread.start();
 
         new Thread(Main::client).start();
 
         long t_start, t_read, t_ccls, t_end;
-        //noinspection InfiniteLoopStatement
-        while (true) {
-            t_start = System.currentTimeMillis();
+        try{
+            //noinspection InfiniteLoopStatement
+            while (true) {
+                t_start = System.currentTimeMillis();
 
-            camera.read(colorImg);
+                camera.read(colorImg);
 
-            t_read = System.currentTimeMillis();
+                t_read = System.currentTimeMillis();
 
-            MatOfRect faces = new MatOfRect();
-            cascadeClassifier.detectMultiScale(colorImg, faces, 1.1, 3, 0, minSize, maxSize);
+                MatOfRect faces = new MatOfRect();
+                cascadeClassifier.detectMultiScale(colorImg, faces, 1.1, 3, 0, minSize, maxSize);
 
-            t_ccls = System.currentTimeMillis();
+                t_ccls = System.currentTimeMillis();
 
-            window.updateImage(colorImg);
+//            window.updateImage(colorImg);
 
-            Rect best = null;
-            double bestScore = 0;
-            for (Rect r : faces.toArray()) {
-                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
-                double score = getScore(r);
-                if (score > bestScore) {
-                    best = r;
-                    bestScore = score;
-                }
-            }
-
-            if (best != null) {
-                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
-
-                // Add padding
-                final double pad = 0.2;
-                int width = best.width;
-                int height = best.height;
-
-                double padX = width * pad;
-                double padY = height * pad;
-
-                Point tl = best.tl();
-                Point br = best.br();
-                tl.x = Math.max(0, tl.x - padX);
-                tl.y = Math.max(0, tl.y - padY);
-                br.x = Math.min(colorImg.width(), br.x + padX);
-                br.y = Math.min(colorImg.height(), br.y + padY);
-                best = new Rect(tl, br);
-
-                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
-
-                // Crop, catch any out of bounds errors
-
-                try {
-                    faceArea = colorImg.submat(best);
-                } catch (Exception e) {
-                    System.err.println(best);
-                    e.printStackTrace();
-                    continue;
+                Rect best = null;
+                double bestScore = 0;
+                for (Rect r : faces.toArray()) {
+//                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
+                    double score = getScore(r);
+                    if (score > bestScore) {
+                        best = r;
+                        bestScore = score;
+                    }
                 }
 
-                System.out.println(best);
+                if (best != null) {
+//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
+
+                    // Add padding
+                    final double pad = 0.2;
+                    int width = best.width;
+                    int height = best.height;
+
+                    double padX = width * pad;
+                    double padY = height * pad;
+
+                    Point tl = best.tl();
+                    Point br = best.br();
+                    tl.x = Math.max(0, tl.x - padX);
+                    tl.y = Math.max(0, tl.y - padY);
+                    br.x = Math.min(colorImg.width(), br.x + padX);
+                    br.y = Math.min(colorImg.height(), br.y + padY);
+                    best = new Rect(tl, br);
+
+//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
+
+                    // Crop, catch any out of bounds errors
+
+                    try {
+                        faceArea = colorImg.submat(best);
+                    } catch (Exception e) {
+                        System.err.println(best);
+                        e.printStackTrace();
+                        continue;
+                    }
+
+                    System.out.println(best);
+                }
+
+                t_end = System.currentTimeMillis();
+
+//            window.repaint();
+
+                String time = 1000 / (t_end - t_start) + " fps \t[" +
+                        "read " + (t_read - t_start) + ", " +
+                        "ccls " + (t_ccls - t_read) + ", " +
+                        "post " + (t_end - t_ccls) + "]";
+//            window.setTitle(time);
+                System.out.println(time);
             }
-
-            t_end = System.currentTimeMillis();
-
-            window.repaint();
-
-            String time = 1000 / (t_end - t_start) + " fps \t[" +
-                    "read " + (t_read - t_start) + ", " +
-                    "ccls " + (t_ccls - t_read) + ", " +
-                    "post " + (t_end - t_ccls) + "]";
-            window.setTitle(time);
-            System.out.println(time);
+        } finally {
+            capoController.Stop();
+            sensorLoopMonitorThread.Stop();
         }
 
     }
@@ -155,8 +169,8 @@ public class Main {
 
     // Http client thread, Face Window display
     private static void client() {
-        FaceWindow face_window = new FaceWindow();
-        face_window.setTitle("face");
+//        FaceWindow face_window = new FaceWindow();
+//        face_window.setTitle("face");
 
         CloseableHttpClient httpClient = HttpClients.createDefault();
 
@@ -190,33 +204,34 @@ public class Main {
 
             t_conv = System.currentTimeMillis();
 
-            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
-
-            final String filename = counter++ + ".jpeg";
-
-            HttpEntity multipart = MultipartEntityBuilder.create()
-                    .addTextBody("name", filename, ContentType.TEXT_PLAIN)
-                    .addBinaryBody("file", imageBytes, ContentType.APPLICATION_OCTET_STREAM, filename)
-                    .build();
-
-            uploadFile.setEntity(multipart);
-            String responseText = "";
-            try {
-                CloseableHttpResponse response = httpClient.execute(uploadFile);
-                HttpEntity responseEntity = response.getEntity();
-                responseText = IOUtils.toString(responseEntity.getContent());
-                Result result = objectMapper.readValue(responseText, Result.class);
-                System.out.println(result);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+//            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
+//
+//            final String filename = counter++ + ".jpeg";
+//
+//            HttpEntity multipart = MultipartEntityBuilder.create()
+//                    .addTextBody("name", filename, ContentType.TEXT_PLAIN)
+//                    .addBinaryBody("file", imageBytes, ContentType.APPLICATION_OCTET_STREAM, filename)
+//                    .build();
+//
+//            uploadFile.setEntity(multipart);
+//            String responseText = "{}";
+//            try {
+//                CloseableHttpResponse response = httpClient.execute(uploadFile);
+//                HttpEntity responseEntity = response.getEntity();
+//                responseText = IOUtils.toString(responseEntity.getContent());
+//                Result result = objectMapper.readValue(responseText, Result.class);
+//                System.out.println(result);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
 
             t_end = System.currentTimeMillis();
 
             String time = "[" + (t_end - t_start) + " ms: conv " + (t_conv - t_start) + "]";
-            face_window.setTitle(responseText + time);
-            face_window.setImage(image);
-            face_window.repaint();
+            System.out.println(time);
+//            face_window.setTitle(responseText + time);
+//            face_window.setImage(image);
+//            face_window.repaint();
         }
     }
 

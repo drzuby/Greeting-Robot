@@ -13,6 +13,7 @@ import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -74,7 +75,7 @@ public class HelloController {
                         .map(r -> {
                             try {
                                 return objectMapper.writeValueAsString(r);
-                            } catch (JsonProcessingException e) {
+                            } catch (IOException e) {
                                 logger.error("Error occurred while transforming result to string", e);
                             }
                             return null;
