@@ -1,9 +1,10 @@
-.idea/*
+**/.idea
+**/.logs
 *.iml
 out/*
 img/*
 target/*
-
+**/gradle
 **/.biowiz-data
 **/.gradle
 **/build/

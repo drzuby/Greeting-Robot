@@ -16,14 +16,15 @@ import java.io.File;
 import java.io.IOException;
 
 public class TestClient {
-    private static String FILENAME = "exampleFile.jpeg";
+    private static final String FILENAME = "exampleFile.jpeg";
+    private static final String HOST = "192.168.2.x";
 
     public static void main(String[] args) throws IOException {
         CloseableHttpClient httpClient = HttpClients.createDefault();
 
-        HttpPost uploadFile = new HttpPost("http://localhost:9999/uploadFile");
+        HttpPost uploadFile = new HttpPost("http://" + HOST + ":9999/uploadFile");
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.addTextBody("name", "someFile.jpeg", ContentType.TEXT_PLAIN);
+        builder.addTextBody("name", FILENAME, ContentType.TEXT_PLAIN);
 
         BufferedImage bufferedImage = ImageIO.read(new File(FILENAME));
         byte[] imageBytes;
