@@ -41,4 +41,3 @@ jar {
     from configurations.compile.collect { zipTree it }
     manifest.attributes "Main-Class": "greeting.robot.Main"
 }
-
