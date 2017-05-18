@@ -143,12 +143,12 @@ public class Main {
 
                 if (GUI) window.repaint();
 
-                String time = 1000 / (t_end - t_start) + " fps \t[" +
+                String time = (t_end - t_start) + " ms \t[" +
                         "read " + (t_read - t_start) + ", " +
                         "ccls " + (t_ccls - t_read) + ", " +
                         "post " + (t_end - t_ccls) + "]";
                 if (GUI) window.setTitle(time);
-                System.out.println(time);
+//                System.out.println(time);
             }
         } finally {
             capoController.Stop();
@@ -243,7 +243,7 @@ public class Main {
                 face_window.setImage(image);
                 face_window.repaint();
             } else {
-                System.out.println(time);
+//                System.out.println(time);
             }
         }
     }

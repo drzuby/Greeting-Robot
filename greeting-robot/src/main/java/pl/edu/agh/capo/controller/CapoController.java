@@ -6,11 +6,11 @@ import pl.edu.agh.amber.hokuyo.MapPoint;
 import pl.edu.agh.amber.hokuyo.Scan;
 import pl.edu.agh.amber.roboclaw.RoboclawProxy;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.List;
+
+import static java.util.stream.Collectors.joining;
 
 public class CapoController
 implements Runnable
@@ -27,7 +27,7 @@ implements Runnable
 	
 	protected boolean isRun = true;
 
-//	public static final double TARGET_DISTANCE = 700;
+	public static final double TARGET_DISTANCE = 700;
 
 	public CapoController(String robotIP, double maxVelocity)
 			throws IOException
@@ -89,24 +89,76 @@ implements Runnable
 			this.monitorThread.interrupt();
 			SetCapoVelocity(0,0);
 
-			/* Dump to CSV */
-			File file = new File((++counter)+".csv");
-			try (OutputStreamWriter outputStreamWriter =
-						 new OutputStreamWriter(new FileOutputStream(file))) {
-				for (MapPoint p: scanPoints) {
-					outputStreamWriter.write(p.getAngle() + ", "+p.getDistance()+"\n");
-				}
-				System.out.println(file.getName());
-				if (System.in.read() == -1) {
-					System.exit(0);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+			/* Split into ranges of similar distance */
+			List<ScannedEntity> scannedEntities = new ArrayList<>();
 
+			MapPoint prev = scanPoints.get(0);
+			ScannedEntity current = new ScannedEntity(prev);
+			int n = 1;
+
+			double dR;
+			for (MapPoint p : scanPoints.subList(1,scanPoints.size())) {
+				dR = (p.getDistance() - prev.getDistance()) /
+						(p.getAngle() - prev.getAngle());
+				if (Math.abs(dR) > 300) {
+					current.endAngle = p.getAngle();
+					current.avgDistance /= n;
+
+					if (current.getWidth() > 1) scannedEntities.add(current);
+
+					current = new ScannedEntity(p);
+					n = 1;
+				} else {
+					current.avgDistance += p.getDistance();
+					n++;
+				}
+				prev = p;
+			}
+			current.endAngle = scanPoints.get(scanPoints.size()-1).getAngle();
+			current.avgDistance /= n;
+			if (current.getWidth() > 1) scannedEntities.add(current);
+
+            /* Debug: print all ranges */
+			System.out.println(scannedEntities.size());
+			System.out.println(scannedEntities.stream()
+					.map(ScannedEntity::toString)
+					.collect(joining(",\n"))
+			);
+
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				continue;
+			}
+			
+		}				
+	
 	}
 
+	private static class ScannedEntity {
+		public double startAngle;
+		public double endAngle;
+		public double avgDistance;
+
+		public ScannedEntity(MapPoint point) {
+			this.startAngle = point.getAngle();
+			this.avgDistance = point.getDistance();
+		}
+
+		public double getWidth() {
+			return avgDistance * Math.sqrt(2 * (1 - Math.cos(Math.toRadians(startAngle - endAngle))));
+		}
+
+		@Override
+		public String toString() {
+			return "[" +
+					"" + startAngle +
+					", " + endAngle +
+					", " + avgDistance +
+					", " + getWidth() +
+					"]";
+		}
+	}
 
 	/**
 	 * Sets the velocity of the robot
