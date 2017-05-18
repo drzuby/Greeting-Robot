@@ -1,15 +1,16 @@
 package pl.edu.agh.capo.controller;
 
-import java.io.IOException;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-
 import pl.edu.agh.amber.common.AmberClient;
 import pl.edu.agh.amber.hokuyo.HokuyoProxy;
 import pl.edu.agh.amber.hokuyo.MapPoint;
 import pl.edu.agh.amber.hokuyo.Scan;
 import pl.edu.agh.amber.roboclaw.RoboclawProxy;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.List;
 
 public class CapoController
 implements Runnable
@@ -25,6 +26,8 @@ implements Runnable
 	protected Thread monitorThread;
 	
 	protected boolean isRun = true;
+
+//	public static final double TARGET_DISTANCE = 700;
 
 	public CapoController(String robotIP, double maxVelocity)
 			throws IOException
@@ -53,6 +56,7 @@ implements Runnable
 	 */
 	public void run()
 	{
+		int counter = 0;
 		while (this.isRun)
 		{
 			Scan scan;
@@ -80,45 +84,27 @@ implements Runnable
 				continue;
 			}
 
+			if (scanPoints.isEmpty()) continue;
 
+			this.monitorThread.interrupt();
+			SetCapoVelocity(0,0);
 
-			Optional<MapPoint> min = scanPoints.stream()
-					.filter(mapPoint -> mapPoint.getAngle() < 60 && mapPoint.getAngle() > -60
-							&& mapPoint.getDistance() > 500 && mapPoint.getDistance() < 5000)
-					.min(Comparator.comparing(MapPoint::getDistance));
-
-			final double targetDistance = 700;
-			if (min.isPresent()) {
-				this.monitorThread.interrupt();
-				double angle = min.get().getAngle();
-				double distance = min.get().getDistance();
-				double deltaDistance = distance - targetDistance;
-
-				double forwardVelocity = deltaDistance / 1000;
-				double turn = angle / 100;
-				SetCapoVelocity(forwardVelocity + turn, forwardVelocity - turn);
-
+			/* Dump to CSV */
+			File file = new File((++counter)+".csv");
+			try (OutputStreamWriter outputStreamWriter =
+						 new OutputStreamWriter(new FileOutputStream(file))) {
+				for (MapPoint p: scanPoints) {
+					outputStreamWriter.write(p.getAngle() + ", "+p.getDistance()+"\n");
+				}
+				System.out.println(file.getName());
+				if (System.in.read() == -1) {
+					System.exit(0);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-//
-//				Add your code here			
-//			
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////
-			
-			
+		}
 
-			
-//			SetCapoVelocity(0.1, -0.1);
-			
-		}				
-	
 	}
 
 
