@@ -8,6 +8,7 @@ import pl.edu.agh.amber.roboclaw.RoboclawProxy;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.joining;
@@ -84,39 +85,10 @@ implements Runnable
 				continue;
 			}
 
-			if (scanPoints.isEmpty()) continue;
-
 			this.monitorThread.interrupt();
 			SetCapoVelocity(0,0);
 
-			/* Split into ranges of similar distance */
-			List<ScannedEntity> scannedEntities = new ArrayList<>();
-
-			MapPoint prev = scanPoints.get(0);
-			ScannedEntity current = new ScannedEntity(prev);
-			int n = 1;
-
-			double dR;
-			for (MapPoint p : scanPoints.subList(1,scanPoints.size())) {
-				dR = (p.getDistance() - prev.getDistance()) /
-						(p.getAngle() - prev.getAngle());
-				if (Math.abs(dR) > 300) {
-					current.endAngle = p.getAngle();
-					current.avgDistance /= n;
-
-					if (current.getWidth() > 1) scannedEntities.add(current);
-
-					current = new ScannedEntity(p);
-					n = 1;
-				} else {
-					current.avgDistance += p.getDistance();
-					n++;
-				}
-				prev = p;
-			}
-			current.endAngle = scanPoints.get(scanPoints.size()-1).getAngle();
-			current.avgDistance /= n;
-			if (current.getWidth() > 1) scannedEntities.add(current);
+			List<ScannedEntity> scannedEntities = detectEntities(scanPoints);
 
             /* Debug: print all ranges */
 			System.out.println(scannedEntities.size());
@@ -124,6 +96,11 @@ implements Runnable
 					.map(ScannedEntity::toString)
 					.collect(joining(",\n"))
 			);
+
+			// TODO: scannedEntities:
+			// 	filter by width [human leg],
+			// 	find 2 points close enough to each other,
+			// 	Assume human, go towards it (old capo code)
 
 			try {
 				Thread.sleep(5000);
@@ -133,6 +110,38 @@ implements Runnable
 			
 		}				
 	
+	}
+
+	/* Split into ranges of similar distance */
+	private List<ScannedEntity> detectEntities(List<MapPoint> scanPoints) {
+		if (scanPoints.isEmpty()) return Collections.emptyList();
+		List<ScannedEntity> scannedEntities = new ArrayList<>();
+		MapPoint prev = scanPoints.get(0);
+		ScannedEntity current = new ScannedEntity(prev);
+		int n = 1;
+
+		double dR;
+		for (MapPoint p : scanPoints.subList(1,scanPoints.size())) {
+            dR = (p.getDistance() - prev.getDistance()) /
+                    (p.getAngle() - prev.getAngle());
+            if (Math.abs(dR) > 300) {
+                current.endAngle = p.getAngle();
+                current.avgDistance /= n;
+
+                if (current.getWidth() > 1) scannedEntities.add(current);
+
+                current = new ScannedEntity(p);
+                n = 1;
+            } else {
+                current.avgDistance += p.getDistance();
+                n++;
+            }
+            prev = p;
+        }
+		current.endAngle = scanPoints.get(scanPoints.size()-1).getAngle();
+		current.avgDistance /= n;
+		if (current.getWidth() > 1) scannedEntities.add(current);
+		return scannedEntities;
 	}
 
 	private static class ScannedEntity {
