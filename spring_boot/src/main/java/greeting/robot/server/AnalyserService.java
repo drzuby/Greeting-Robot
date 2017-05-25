@@ -9,7 +9,6 @@ import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.Optional;
 
@@ -19,6 +18,7 @@ public class AnalyserService {
 
     @PostConstruct
     public void postConstruct() {
+        System.setProperty("useGpu", "true");
         analyser.initialize();
     }
 
