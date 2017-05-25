@@ -8,10 +8,7 @@ import pl.edu.agh.amber.hokuyo.Scan;
 import pl.edu.agh.amber.roboclaw.RoboclawProxy;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static java.util.stream.Collectors.joining;
 
@@ -19,7 +16,7 @@ public class CapoController
         implements Runnable {
 
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    protected double maxVelocity = 1.0D;
+    protected double maxVelocity = 0.2D;
     protected double currentVelocityLeft;
     protected double currentVelocityRight;
     protected AmberClient client;
@@ -29,9 +26,12 @@ public class CapoController
     protected Thread monitorThread;
     protected boolean isRun = true;
 
-    public static final int MINIMUM_DISTANCE_CHANGE = 100;
+    private static final int MINIMUM_DISTANCE_CHANGE = 100;
 
-    public static final double TARGET_DISTANCE = 700;
+    private static final double TARGET_DISTANCE = 700;
+
+    private static final double MAX_FOV = 45;
+    private static final double MIN_FOV = 15;
 
     public static final double MIN_LEG_WIDTH = 50;
     public static final double MAX_LEG_WIDTH = 200;
@@ -63,8 +63,17 @@ public class CapoController
      * Controller thread - main control loop here
      */
     public void run() {
-        int counter = 0;
+
+        double t0 = System.currentTimeMillis();
+        double deltaTime, t1;
+        double fov = MAX_FOV;
+        double targetAngle = 0;
+
         while (this.isRun) {
+            t1 = System.currentTimeMillis();
+            deltaTime = (t1 - t0) / 1000;
+            t0 = t1;
+
             Scan scan;
             try {
                 scan = this.hokuyoProxy.getSingleScan();
@@ -74,7 +83,6 @@ public class CapoController
                 System.out.println("FATAL Exception in hokuyoProxy.getSingleScan(): " + e.getMessage());
                 return;
             }
-
             List<MapPoint> scanPoints;
             try {
                 scanPoints = scan.getPoints();
@@ -83,17 +91,15 @@ public class CapoController
                 System.out.println("Exception in scan.getPoints: " + e.getMessage());
                 continue;
             }
+//            this.monitorThread.interrupt();
+//            SetCapoVelocity(0, 0);
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                continue;
+//            }
 
-            this.monitorThread.interrupt();
-            SetCapoVelocity(0, 0);
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                continue;
-            }
-
-            List<ScannedEntity> scannedEntities = detectEntities(scanPoints);
+            List<ScannedEntity> scannedEntities = detectEntities(scanPoints, targetAngle, fov);
 
             /* Debug: print all ranges */
 //			System.out.println(ScannedEntity.asNPArray(scannedEntities));
@@ -123,24 +129,28 @@ public class CapoController
                     }
                 }
             }
-            if (secondLeg == null) {
-                System.out.println("Did not find a pair of legs");
-                continue;
-            }
 
+            if (secondLeg != null) {
 //            System.out.println("Legs:\n" +
 //                    firstLeg + "\n" +
 //                    secondLeg);
 
-            double middleAngle2 = (firstLeg.centerAngle() + secondLeg.centerAngle()) / 2;
+                targetAngle = (firstLeg.centerAngle() + secondLeg.centerAngle()) / 2;
+                double targetDistance = (firstLeg.avgDistance + secondLeg.avgDistance) / 2;
 
-            System.out.println("Target at "+middleAngle2);
-//            System.out.println(scannedEntities.stream()
-//                    .filter(e -> MIN_LEG_WIDTH <= e.getWidth() && e.getWidth() <= MAX_LEG_WIDTH)
-//                    .map(ScannedEntity::centerAngle)
-//                    .map(String::valueOf)
-//                    .collect(joining("\n")));
+                System.out.println("Target at " + targetAngle + ", " + targetDistance);
 
+                double deltaDistance = targetDistance - TARGET_DISTANCE;
+                double forwardVelocity = deltaDistance * 0;
+                double turn = targetAngle / 100;
+                SetCapoVelocity(forwardVelocity + turn, forwardVelocity - turn);
+            } else {
+                System.out.println("Did not find a pair of legs");
+                SetCapoVelocity(-0.05, 0.05);
+            }
+            this.monitorThread.interrupt();
+
+            System.out.println(deltaTime);
             // TODO: scannedEntities:
             // 	filter by width [human leg],
 
@@ -151,15 +161,23 @@ public class CapoController
     }
 
     /* Split into ranges of similar distance */
-    private List<ScannedEntity> detectEntities(List<MapPoint> scanPoints) {
+    private List<ScannedEntity> detectEntities(List<MapPoint> scanPoints, double target, double fov) {
         if (scanPoints.isEmpty()) return Collections.emptyList();
         List<ScannedEntity> scannedEntities = new ArrayList<>();
-        MapPoint prev = scanPoints.get(0);
+
+        Iterator<MapPoint> iterator = scanPoints.iterator();
+        MapPoint prev;
+        do {
+            prev = iterator.next();
+        } while (Math.abs(prev.getAngle() - target) > fov);
+
         ScannedEntity current = new ScannedEntity(prev);
         int n = 1;
-
         double dR;
-        for (MapPoint p : scanPoints.subList(1, scanPoints.size())) {
+        MapPoint p = prev;
+        while (iterator.hasNext()) {
+            p = iterator.next();
+            if (Math.abs(p.getAngle() - target) > fov) break;
             dR = (p.getDistance() - prev.getDistance()) /
                     (p.getAngle() - prev.getAngle());
             if (Math.abs(dR) > MINIMUM_DISTANCE_CHANGE) {
@@ -176,7 +194,7 @@ public class CapoController
             }
             prev = p;
         }
-        current.endAngle = scanPoints.get(scanPoints.size() - 1).getAngle();
+        current.endAngle = p.getAngle();
         current.avgDistance /= n;
         if (current.getWidth() > 1) scannedEntities.add(current);
         return scannedEntities;
@@ -253,7 +271,7 @@ public class CapoController
      * Called by the sensor monitoring thread when reading is late
      */
     public void reduceSpeedDueToSensorRedingTimeout() {
-        System.out.print("-> reduceSpeedDueToSensorRedingTimeou  ");
+        System.out.print("-> reduceSpeedDueToSensorRedingTimeout");
         SetCapoVelocity(this.currentVelocityLeft / 2.0D, this.currentVelocityRight / 2.0D);
     }
 }
