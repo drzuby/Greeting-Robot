@@ -15,6 +15,7 @@ tasks.withType(JavaCompile) {
 }
 
 import org.apache.tools.ant.taskdefs.condition.Os
+
 def isWindows = Os.isFamily(Os.FAMILY_WINDOWS)
 
 repositories {
@@ -44,4 +45,8 @@ dependencies {
 
 bootRepackage {
     mainClass = "greeting.robot.server.Application"
+}
+
+test {
+    workingDir = rootDir
 }
