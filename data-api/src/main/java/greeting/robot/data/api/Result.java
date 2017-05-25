@@ -4,31 +4,34 @@ package greeting.robot.data.api;
  * Created by Jakub Janusz on 24.04.2017.
  */
 public class Result {
-    private String firstName;
-    private String lastName;
+    private String name;
+    private float quality;
 
-    public String getFirstName() {
-        return firstName;
+    public String getName() {
+        return name;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getLastName() {
-        return lastName;
+    public float getQuality() {
+        return quality;
     }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
+    public void setQuality(float quality) {
+        this.quality = quality;
     }
 
     @Override
     public String toString() {
-        return new StringBuilder("I'm ")
-                .append(firstName)
-                .append(" ")
-                .append(lastName)
-                .toString();
+        return name + ", quality: " + quality;
+    }
+
+    public static Result of(String name, float quality) {
+        Result result = new Result();
+        result.name = name;
+        result.quality = quality;
+        return result;
     }
 }

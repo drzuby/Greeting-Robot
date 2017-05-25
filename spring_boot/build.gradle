@@ -31,6 +31,7 @@ dependencies {
     testCompile(group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2') {
         exclude(module: 'commons-logging')
     }
+    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test'
 
     compile fileTree(dir: 'lib', include: '*.jar')
 

@@ -2,18 +2,23 @@ package greeting.robot.server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import greeting.robot.data.api.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pl.edu.agh.biowiz.model.detected.PwDetectedFace;
 import pl.edu.agh.biowiz.model.profile.PwFaceDescriptor;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -34,12 +39,12 @@ public class HelloController {
         return "Greetings from Spring Boot!";
     }
 
-    @RequestMapping(value = "/uploadFile", method = RequestMethod.POST)
+    @PostMapping(value = "/uploadFile", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public String uploadFileHandler(@RequestParam("name") String name,
+    public List<Result> uploadFileHandler(@RequestParam("name") String name,
                                     @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return "You failed to upload " + name + " because the file was empty.";
+            throw new RuntimeException("You failed to upload " + name + " because the file was empty.");
         }
         try {
             double startTime, detectTime, descTime;
@@ -71,21 +76,12 @@ public class HelloController {
             if (descriptor.isPresent()) {
                 PwFaceDescriptor pwFaceDescriptor = descriptor.get();
                 logger.debug("quality: {}", pwFaceDescriptor.getQuality());
-                return descriptorService.identify(pwFaceDescriptor).stream()
-                        .map(r -> {
-                            try {
-                                return objectMapper.writeValueAsString(r);
-                            } catch (IOException e) {
-                                logger.error("Error occurred while transforming result to string", e);
-                            }
-                            return null;
-                        })
-                        .collect(Collectors.joining("\n"));
+                return descriptorService.identify(pwFaceDescriptor);
             } else {
-                return "No faces found";
+                return Collections.emptyList();
             }
         } catch (Exception e) {
-            return "You failed to upload " + name + " => " + e.getMessage();
+            throw new RuntimeException("You failed to upload " + name, e);
         }
     }
 }
