@@ -3,20 +3,18 @@ package greeting.robot.capo;
 import pl.edu.agh.amber.hokuyo.MapPoint;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 public class SegmentScan {
     private static final int MINIMUM_DISTANCE_CHANGE = 100;
 
-    private List<Segment> segments = new ArrayList<>();
+    private final List<Segment> segments = new ArrayList<>();
     private MapPoint prev;
     private double startAngle;
     private double sumDistance;
     private int pointCount;
 
-    public void update(MapPoint p) {
+    private void update(MapPoint p) {
         if (prev == null) {
             prev = p;
             pointCount = 1;
@@ -37,10 +35,6 @@ public class SegmentScan {
 
     public SegmentScan(Iterable<MapPoint> mapPoints) {
         mapPoints.forEach(this::update);
-    }
-
-    public List<Segment> getSegments() {
-        return segments;
     }
 
     /* Split into ranges of similar distance */

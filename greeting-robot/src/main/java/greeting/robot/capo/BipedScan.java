@@ -13,7 +13,7 @@ public class BipedScan {
 
     private static final int MAX_LEG_DISTANCE = 1000;
 
-    private List<Biped> detectedBipeds = new ArrayList<>();
+    private final List<Biped> detectedBipeds = new ArrayList<>();
 
     private Segment previousLeg;
 
@@ -21,10 +21,6 @@ public class BipedScan {
         for (Segment e : scannedEntities) {
             update(e);
         }
-    }
-
-    public List<Biped> getDetectedBipeds() {
-        return detectedBipeds;
     }
 
     public Optional<Biped> getBest() {

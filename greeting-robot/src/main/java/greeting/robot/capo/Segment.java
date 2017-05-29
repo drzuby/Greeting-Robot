@@ -1,17 +1,13 @@
 package greeting.robot.capo;
 
-import pl.edu.agh.amber.hokuyo.MapPoint;
-import pl.edu.agh.capo.controller.CapoController;
-
-import java.io.IOException;
 import java.util.List;
 
 import static java.util.stream.Collectors.joining;
 
 public class Segment {
-    public double startAngle;
+    public final double startAngle;
     public double endAngle;
-    public double avgDistance;
+    public final double avgDistance;
 
     public Segment(double startAngle, double endAngle, double avgDistance) {
         this.startAngle = startAngle;
@@ -19,13 +15,8 @@ public class Segment {
         this.avgDistance = avgDistance;
     }
 
-    public Segment(MapPoint point) {
-        this.startAngle = point.getAngle();
-        this.avgDistance = point.getDistance();
-    }
-
     public double getWidth() {
-        return avgDistance * Math.sqrt(2 * (1 - Math.cos(Math.toRadians(startAngle - endAngle))));
+        return Utils.polarDistance(avgDistance, startAngle, endAngle);
     }
 
     public double centerAngle() {

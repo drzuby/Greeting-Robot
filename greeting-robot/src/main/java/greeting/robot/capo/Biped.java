@@ -1,20 +1,12 @@
 package greeting.robot.capo;
 
 public class Biped {
-    private Segment firstLeg;
-    private Segment secondLeg;
+    private final Segment firstLeg;
+    private final Segment secondLeg;
 
     public Biped(Segment firstLeg, Segment secondLeg) {
         this.firstLeg = firstLeg;
         this.secondLeg = secondLeg;
-    }
-
-    public Segment getFirstLeg() {
-        return firstLeg;
-    }
-
-    public Segment getSecondLeg() {
-        return secondLeg;
     }
 
     public double getAngle() {

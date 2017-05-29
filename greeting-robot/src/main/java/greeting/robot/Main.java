@@ -75,7 +75,7 @@ public class Main {
         new Thread(capoController).start();
         monitorThread.start();
 
-        new Thread(Main::client).start();
+//        new Thread(Main::client).start();
 
         long t_start, t_read, t_ccls, t_end;
         try {
@@ -213,37 +213,37 @@ public class Main {
 
             t_conv = System.currentTimeMillis();
 
-//            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
-//
-//            final String filename = counter++ + ".jpeg";
-//
-//            HttpEntity multipart = MultipartEntityBuilder.create()
-//                    .addTextBody("name", filename, ContentType.TEXT_PLAIN)
-//                    .addBinaryBody("file", imageBytes, ContentType.APPLICATION_OCTET_STREAM, filename)
-//                    .build();
-//
-//            uploadFile.setEntity(multipart);
-//            String responseText = "{}";
-//            try {
-//                CloseableHttpResponse response = httpClient.execute(uploadFile);
-//                HttpEntity responseEntity = response.getEntity();
-//                responseText = IOUtils.toString(responseEntity.getContent());
-//                Result result = objectMapper.readValue(responseText, Result.class);
-//                beep();
-//                System.out.println(result);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
+            HttpPost uploadFile = new HttpPost(ENDPOINT_URL);
+
+            final String filename = counter++ + ".jpeg";
+
+            HttpEntity multipart = MultipartEntityBuilder.create()
+                    .addTextBody("name", filename, ContentType.TEXT_PLAIN)
+                    .addBinaryBody("file", imageBytes, ContentType.APPLICATION_OCTET_STREAM, filename)
+                    .build();
+
+            uploadFile.setEntity(multipart);
+            String responseText = "{}";
+            try {
+                CloseableHttpResponse response = httpClient.execute(uploadFile);
+                HttpEntity responseEntity = response.getEntity();
+                responseText = IOUtils.toString(responseEntity.getContent());
+                Result result = objectMapper.readValue(responseText, Result.class);
+                beep();
+                System.out.println(result);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
             t_end = System.currentTimeMillis();
 
             String time = "[" + (t_end - t_start) + " ms: conv " + (t_conv - t_start) + "]";
             if (GUI) {
-//                face_window.setTitle(responseText + time);
+                face_window.setTitle(responseText + time);
                 face_window.setImage(image);
                 face_window.repaint();
             } else {
-//                System.out.println(time);
+                System.out.println(time);
             }
         }
     }
