@@ -24,11 +24,11 @@ public class BipedScan {
     }
 
     public Optional<Biped> getBest() {
-        return detectedBipeds.stream().min(Comparator.comparing(BipedScan::score));
+        return detectedBipeds.stream().min(Comparator.comparing(BipedScan::cost));
     }
 
-    private static double score(Biped biped) {
-        return 1.0 / biped.getDistance();
+    private static double cost(Biped biped) {
+        return biped.getDistance();
     }
 
     public void update(Segment e) {

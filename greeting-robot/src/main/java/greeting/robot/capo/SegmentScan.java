@@ -15,6 +15,8 @@ public class SegmentScan {
     private int pointCount;
 
     private void update(MapPoint p) {
+        // TODO: discard invalid points
+        // mapPoint.getDistance() > 500 && mapPoint.getDistance() < 5000
         if (prev == null) {
             prev = p;
             pointCount = 1;

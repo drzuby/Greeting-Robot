@@ -52,6 +52,7 @@ public class CapoController
      * Controller thread - main control loop here
      */
     public void run() {
+
         while (this.isRun) {
             List<MapPoint> scanPoints = getScan();
             if (scanPoints.isEmpty()) continue;
@@ -71,9 +72,21 @@ public class CapoController
             List<Segment> scannedEntities = SegmentScan.detectSegments(scanPoints);
             Optional<Biped> best = BipedScan.findBest(scannedEntities);
 
+            // TODO: split loops
             if (best.isPresent()) {
-                System.out.println("Target at " + best.get().getAngle());
+                Biped biped = best.get();
                 // 	Assume human, go towards it (old capo code)
+                double targetAngle = biped.getAngle();
+                System.out.println("Target at " + targetAngle);
+
+                this.monitorThread.interrupt();
+                double angle = biped.getAngle();
+                double distance = biped.getDistance();
+                double deltaDistance = distance - TARGET_DISTANCE;
+
+                double forwardVelocity = deltaDistance / 1000;
+                double turn = angle / 100;
+                SetCapoVelocity(forwardVelocity + turn, forwardVelocity - turn);
             } else {
                 System.out.println("No targets in sight");
             }
