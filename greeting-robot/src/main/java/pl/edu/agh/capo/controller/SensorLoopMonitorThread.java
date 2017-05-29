@@ -30,7 +30,7 @@ public class SensorLoopMonitorThread
       {
         continue;
       }
-      this.capoController.reduceSpeedDueToSensorRedingTimeout();
+      this.capoController.reduceSpeedDueToSensorReadingTimeout();
     }
   }
 }
