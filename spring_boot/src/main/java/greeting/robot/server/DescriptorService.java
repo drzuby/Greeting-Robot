@@ -1,7 +1,6 @@
 package greeting.robot.server;
 
 import greeting.robot.data.api.Result;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pl.edu.agh.biowiz.model.Project;
@@ -12,7 +11,9 @@ import pl.edu.agh.biowiz.repo.holder.ProjectHolder;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

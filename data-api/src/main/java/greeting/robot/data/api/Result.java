@@ -3,7 +3,7 @@ package greeting.robot.data.api;
 /**
  * Created by Jakub Janusz on 24.04.2017.
  */
-public class Result {
+public class Result implements Comparable<Result> {
     private String name;
     private float quality;
 
@@ -33,5 +33,10 @@ public class Result {
         result.name = name;
         result.quality = quality;
         return result;
+    }
+
+    @Override
+    public int compareTo(Result o) {
+        return Float.compare(this.quality, o.getQuality());
     }
 }

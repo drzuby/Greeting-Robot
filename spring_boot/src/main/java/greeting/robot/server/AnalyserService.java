@@ -32,8 +32,7 @@ public class AnalyserService {
         return analyser.detectFaceInRectangle(image, rectangle);
     }
 
-    public CreateDescriptorResult<PwFaceDescriptor>
-    describe(PwDetectedFace detectedFace, BufferedImage image) {
+    public CreateDescriptorResult<PwFaceDescriptor> describe(PwDetectedFace detectedFace, BufferedImage image) {
         return analyser.createDescriptor(detectedFace, image);
     }
 
