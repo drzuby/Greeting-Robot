@@ -17,22 +17,28 @@ import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
 import pl.edu.agh.capo.controller.CapoController;
 import pl.edu.agh.capo.controller.SensorLoopMonitorThread;
+import sun.audio.AudioPlayer;
+import sun.audio.AudioStream;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class Main {
 
-    private static final String ENDPOINT_URL = "http://localhost:9999/uploadFile";
+    private static final boolean GUI = false;
+
+    private static final String ENDPOINT_URL = "http://192.168.2.101:9999/uploadFile";
 
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
     private static final int WIDTH = 1920;
+
     private static final int HEIGHT = 1080;
 
     private static volatile Mat faceArea;
@@ -56,9 +62,11 @@ public class Main {
         Size minSize = new Size(100, 100);
         Size maxSize = new Size(WIDTH, HEIGHT);
 
-//        Window window = new Window(WIDTH, HEIGHT);
-//
-//        window.exitOnClose();
+        Window window;
+        if (GUI) {
+            window = new Window(WIDTH, HEIGHT);
+            window.exitOnClose();
+        }
 
 //        CapoController capoController = new CapoController("127.0.0.1", 1.0D);
 //        SensorLoopMonitorThread sensorLoopMonitorThread = new SensorLoopMonitorThread(capoController);
@@ -67,10 +75,10 @@ public class Main {
 //        new Thread(capoController).start();
 //        monitorThread.start();
 
-        new Thread(Main::client).start();
+//        new Thread(Main::client).start();
 
         long t_start, t_read, t_ccls, t_end;
-        try{
+        try {
             //noinspection InfiniteLoopStatement
             while (true) {
                 t_start = System.currentTimeMillis();
@@ -84,12 +92,12 @@ public class Main {
 
                 t_ccls = System.currentTimeMillis();
 
-//            window.updateImage(colorImg);
+                if (GUI) window.updateImage(colorImg);
 
                 Rect best = null;
                 double bestScore = 0;
                 for (Rect r : faces.toArray()) {
-//                Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
+                    if (GUI) Imgproc.rectangle(window.image, r.tl(), r.br(), new Scalar(0, 255, 255), 1);
                     double score = getScore(r);
                     if (score > bestScore) {
                         best = r;
@@ -98,7 +106,7 @@ public class Main {
                 }
 
                 if (best != null) {
-//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
+                    if (GUI) Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 255, 0), 1);
 
                     // Add padding
                     final double pad = 0.2;
@@ -116,7 +124,7 @@ public class Main {
                     br.y = Math.min(colorImg.height(), br.y + padY);
                     best = new Rect(tl, br);
 
-//                Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
+                    if (GUI) Imgproc.rectangle(window.image, best.tl(), best.br(), new Scalar(0, 0, 255), 1);
 
                     // Crop, catch any out of bounds errors
 
@@ -133,20 +141,19 @@ public class Main {
 
                 t_end = System.currentTimeMillis();
 
-//            window.repaint();
+                if (GUI) window.repaint();
 
-                String time = 1000 / (t_end - t_start) + " fps \t[" +
+                String time = (t_end - t_start) + " ms \t[" +
                         "read " + (t_read - t_start) + ", " +
                         "ccls " + (t_ccls - t_read) + ", " +
                         "post " + (t_end - t_ccls) + "]";
-//            window.setTitle(time);
+                if (GUI) window.setTitle(time);
 //                System.out.println(time);
             }
         } finally {
 //            capoController.Stop();
 //            sensorLoopMonitorThread.Stop();
         }
-
     }
 
     private static BufferedImage convertToBufferedImage(Mat mat) {
@@ -169,13 +176,15 @@ public class Main {
 
     // Http client thread, Face Window display
     private static void client() {
-//        FaceWindow face_window = new FaceWindow();
-//        face_window.setTitle("face");
+        FaceWindow face_window;
+        if (GUI) {
+            face_window = new FaceWindow();
+            face_window.setTitle("face");
+        }
 
         CloseableHttpClient httpClient = HttpClients.createDefault();
 
         int counter = 0;
-
         long t_start, t_end, t_conv;
 
         while (true) {
@@ -220,6 +229,7 @@ public class Main {
                 HttpEntity responseEntity = response.getEntity();
                 responseText = IOUtils.toString(responseEntity.getContent());
                 Result result = objectMapper.readValue(responseText, Result.class);
+                beep();
                 System.out.println(result);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -228,10 +238,23 @@ public class Main {
             t_end = System.currentTimeMillis();
 
             String time = "[" + (t_end - t_start) + " ms: conv " + (t_conv - t_start) + "]";
-            System.out.println(time);
-//            face_window.setTitle(responseText + time);
-//            face_window.setImage(image);
-//            face_window.repaint();
+            if (GUI) {
+                face_window.setTitle(responseText + time);
+                face_window.setImage(image);
+                face_window.repaint();
+            } else {
+                System.out.println(time);
+            }
+        }
+    }
+
+    private static void beep() {
+        try {
+            InputStream soundFile = Main.class.getResourceAsStream("/blip.wav");
+            AudioStream audioStream = new AudioStream(soundFile);
+            AudioPlayer.player.start(audioStream);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

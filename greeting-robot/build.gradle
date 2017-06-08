@@ -3,10 +3,14 @@ buildscript {
         mavenCentral()
         jcenter()
     }
+    dependencies {
+        classpath 'org.hidetake:gradle-ssh-plugin:2.9.0'
+    }
 }
 
 apply plugin: 'java'
 apply plugin: 'maven'
+apply plugin: 'org.hidetake.ssh'
 
 group = 'pl.edu.agh.ki'
 version = '1.0-SNAPSHOT'
@@ -17,13 +21,14 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 tasks.withType(JavaCompile) {
-	options.encoding = 'UTF-8'
+    options.encoding = 'UTF-8'
 }
 
 repositories {
-     maven { url "http://repo.maven.apache.org/maven2" }
-     flatDir { dirs "lib" }
+    maven { url "http://repo.maven.apache.org/maven2" }
+    flatDir { dirs "lib" }
 }
+
 dependencies {
     compile fileTree(dir: 'lib', include: ['*.jar'])
 
@@ -34,7 +39,25 @@ dependencies {
     }
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
     compile project(":data-api")
+}
 
+remotes {
+    panda {
+        host = '192.168.2.210'
+        user = 'panda'
+        password = 'panda2015'
+    }
+}
+
+task deploy {
+    dependsOn build
+    doLast {
+        ssh.run {
+            session(remotes.panda) {
+                put from: fileTree(dir: "build/libs/", include: ['*.jar']), into: '/home/panda/opencv/'
+            }
+        }
+    }
 }
 
 jar {

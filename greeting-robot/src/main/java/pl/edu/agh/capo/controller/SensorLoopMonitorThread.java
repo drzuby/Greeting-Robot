@@ -3,9 +3,9 @@ package pl.edu.agh.capo.controller;
 public class SensorLoopMonitorThread
   implements Runnable
 {
-  public static final double maxSensorRefreshTimeSeconds = 0.3D;
-  protected boolean stop = false;
-  protected CapoController capoController;
+  private static final double maxSensorRefreshTimeSeconds = 0.3D;
+  private boolean stop = false;
+  private final CapoController capoController;
   
   public void Stop()
   {
@@ -30,7 +30,7 @@ public class SensorLoopMonitorThread
       {
         continue;
       }
-      this.capoController.reduceSpeedDueToSensorRedingTimeout();
+      this.capoController.reduceSpeedDueToSensorReadingTimeout();
     }
   }
 }
