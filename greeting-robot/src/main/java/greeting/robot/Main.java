@@ -68,12 +68,12 @@ public class Main {
             window.exitOnClose();
         }
 
-        CapoController capoController = new CapoController("127.0.0.1", 1.0D);
-        SensorLoopMonitorThread sensorLoopMonitorThread = new SensorLoopMonitorThread(capoController);
-        Thread monitorThread = new Thread(sensorLoopMonitorThread);
-        capoController.SetMonitoThread(monitorThread);
-        new Thread(capoController).start();
-        monitorThread.start();
+//        CapoController capoController = new CapoController("127.0.0.1", 1.0D);
+//        SensorLoopMonitorThread sensorLoopMonitorThread = new SensorLoopMonitorThread(capoController);
+//        Thread monitorThread = new Thread(sensorLoopMonitorThread);
+//        capoController.SetMonitoThread(monitorThread);
+//        new Thread(capoController).start();
+//        monitorThread.start();
 
 //        new Thread(Main::client).start();
 
@@ -131,7 +131,7 @@ public class Main {
                     try {
                         faceArea = colorImg.submat(best);
                     } catch (Exception e) {
-                        System.err.println(best);
+//                        System.err.println(best);
                         e.printStackTrace();
                         continue;
                     }
@@ -151,8 +151,8 @@ public class Main {
 //                System.out.println(time);
             }
         } finally {
-            capoController.Stop();
-            sensorLoopMonitorThread.Stop();
+//            capoController.Stop();
+//            sensorLoopMonitorThread.Stop();
         }
     }
 
