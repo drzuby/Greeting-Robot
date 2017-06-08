@@ -1,4 +1,4 @@
-package greeting.robot.capo;
+package greeting.robot.scanning;
 
 public class Biped {
     private final Segment firstLeg;

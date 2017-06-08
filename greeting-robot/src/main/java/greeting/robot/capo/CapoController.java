@@ -1,9 +1,10 @@
-package pl.edu.agh.capo.controller;
+package greeting.robot.capo;
 
-import greeting.robot.capo.Biped;
-import greeting.robot.capo.BipedScan;
-import greeting.robot.capo.Segment;
-import greeting.robot.capo.SegmentScan;
+import greeting.robot.CameraController;
+import greeting.robot.scanning.Biped;
+import greeting.robot.scanning.BipedScan;
+import greeting.robot.scanning.Segment;
+import greeting.robot.scanning.SegmentScan;
 import pl.edu.agh.amber.common.AmberClient;
 import pl.edu.agh.amber.hokuyo.HokuyoProxy;
 import pl.edu.agh.amber.hokuyo.MapPoint;
@@ -27,10 +28,13 @@ public class CapoController
     private Thread monitorThread;
     private boolean isRun = true;
 
-    public static final double TARGET_DISTANCE = 700;
+    private static final double DESIRED_DISTANCE = 700;
 
-    public CapoController(String robotIP, double maxVelocity)
+    private CameraController cameraController;
+
+    public CapoController(String robotIP, double maxVelocity, CameraController cameraController)
             throws IOException {
+        this.cameraController = cameraController;
         if (maxVelocity < 2 && maxVelocity > 0)
             this.maxVelocity = maxVelocity;
 
@@ -52,46 +56,45 @@ public class CapoController
      * Controller thread - main control loop here
      */
     public void run() {
+        double targetAngle = 0;
+        double targetDistance = 0;
 
         while (this.isRun) {
             List<MapPoint> scanPoints = getScan();
             if (scanPoints.isEmpty()) continue;
 
-            // TODO: replace with wandering
             this.monitorThread.interrupt();
-            SetCapoVelocity(0, 0);
 
-            try {
-                // FIXME: DEBUG only, remove later
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                continue;
-            }
-            // END
+            List<Segment> segments = SegmentScan.detectSegments(scanPoints);
+            BipedScan bipedScan = new BipedScan(segments);
+//            System.out.println("SegmentScan: "+segments.size() + " BipedScan: "+bipedScan.size());
 
-            List<Segment> scannedEntities = SegmentScan.detectSegments(scanPoints);
-            Optional<Biped> best = BipedScan.findBest(scannedEntities);
+            Optional<Biped> best = bipedScan.getBest(0, 0);
 
-            // TODO: split loops
             if (best.isPresent()) {
                 Biped biped = best.get();
                 // 	Assume human, go towards it (old capo code)
-                double targetAngle = biped.getAngle();
-                System.out.println("Target at " + targetAngle);
+                targetAngle = biped.getAngle();
+                targetDistance = biped.getDistance();
 
-                this.monitorThread.interrupt();
-                double angle = biped.getAngle();
-                double distance = biped.getDistance();
-                double deltaDistance = distance - TARGET_DISTANCE;
+//                System.out.println("Target at " + targetAngle + ", " + targetDistance);
+
+                double deltaDistance = targetDistance - DESIRED_DISTANCE;
 
                 double forwardVelocity = deltaDistance / 1000;
-                double turn = angle / 100;
+                double turn = targetAngle / 100;
                 SetCapoVelocity(forwardVelocity + turn, forwardVelocity - turn);
+
+                if (deltaDistance < 0.01) {
+                    //close enough, notify camera
+                    cameraController.wakeUp();
+                }
             } else {
-                System.out.println("No targets in sight");
+//                System.out.println("No target");
+                // wander around
+                SetCapoVelocity(-0.0, 0.0);
             }
         }
-
     }
 
     private List<MapPoint> getScan() {
@@ -129,7 +132,7 @@ public class CapoController
         if (-vRight > maxVelocity) vRight = -maxVelocity;
         this.currentVelocityLeft = vLeft;
         this.currentVelocityRight = vRight;
-        System.out.println("At: " + System.currentTimeMillis() + " set velocity from thread " + Thread.currentThread().getId() + ": left=" + vLeft + "; right=" + vRight);
+//        System.out.println("At: " + System.currentTimeMillis() + " set velocity from thread " + Thread.currentThread().getId() + ": left=" + vLeft + "; right=" + vRight);
         try {
             this.roboclawProxy.sendMotorsCommand((int) (vLeft * 1000.0D), (int) (vRight * 1000.0D), (int) (vLeft * 1000.0D), (int) (vRight * 1000.0D));
         } catch (Exception e) {

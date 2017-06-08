@@ -1,4 +1,4 @@
-package greeting.robot.capo;
+package greeting.robot.scanning;
 
 final class Utils {
     private Utils() {

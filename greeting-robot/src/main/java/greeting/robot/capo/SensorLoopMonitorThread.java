@@ -1,4 +1,4 @@
-package pl.edu.agh.capo.controller;
+package greeting.robot.capo;
 
 public class SensorLoopMonitorThread
   implements Runnable
