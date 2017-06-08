@@ -29,7 +29,7 @@ public class HelloController {
 
     private final Logger logger = LoggerFactory.getLogger(HelloController.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final String EMPTY_RESPONSE = "{}";
+    private final String EMPTY_RESPONSE = "[]";
 
     @Autowired
     private AnalyserService analyserService;
@@ -46,7 +46,8 @@ public class HelloController {
     @ResponseBody
     public String uploadFileHandler(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return "You failed to upload file because the it was empty.";
+            logger.warn("You failed to upload file because the it was empty.");
+            return EMPTY_RESPONSE;
         }
         try {
             double startTime, detectTime, descTime;
@@ -85,11 +86,13 @@ public class HelloController {
                 logger.debug("Returning following detections: {}", result);
                 return result;
             } else {
+                logger.warn("No faces found");
                 ErrorResult errorResult = new ErrorResult();
                 errorResult.setMessage("No faces found");
                 return objectMapper.writeValueAsString(errorResult);
             }
         } catch (Exception e) {
+            logger.error("Error occurred", e);
             ErrorResult errorResult = new ErrorResult();
             errorResult.setMessage(e.getMessage());
             try {
